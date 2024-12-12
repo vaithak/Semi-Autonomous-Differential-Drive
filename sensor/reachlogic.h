@@ -98,8 +98,9 @@ bool moveTowardsPoint(
 }
 
 
-// Execute 
-void reachLogic(
+// Execute reachLogic,
+// Return true if we have reached the destination.
+bool reachLogic(
     float current_x,
     float current_y,
     float current_theta,
@@ -115,15 +116,17 @@ void reachLogic(
         desired_x, desired_y,
         current_theta,
         orientationPID)) {
-        return;
+        return false; // as we moved towards point so not finished
     }
 
     if (reachOrientation(current_theta, desired_theta, orientationPID)) {
-        return;
+        return false; // as we moved towards orientation so not finished
     }
+
+    return true;
 }
 
-void attackLogic(
+bool attackLogic(
     float current_x,
     float current_y,
     float current_theta,
@@ -143,6 +146,8 @@ void attackLogic(
             desired_x, desired_y, desired_theta,
             orientationPID);
     }
+
+    return true;
 
     // If reached the desired position and orientation, attack the tower
     // TODO: Implement the attack logic here

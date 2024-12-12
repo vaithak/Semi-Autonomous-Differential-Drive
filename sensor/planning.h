@@ -77,11 +77,10 @@ class Planner {
             this->mode = mode;
         }
 
-        void setDesiredState(RobotState desiredState) {
-            this->desiredState = desiredState;
-        }
+        void setWaypointsAndMode(int target_x, int target_y, const char* mode) {
+            // Set waypointOffset to 0
+            this->waypointOffset = 0;
 
-        void setWaypointsAndMode(int target_x, int target_y, char* mode) {
             // Set the mode
             if (strcmp(mode, "leftWallFollow") == 0) {
                 this->mode = LEFT_WALL_FOLLOW;
@@ -121,7 +120,7 @@ class Planner {
                 // TODO: fix
                 this->waypoints[0] = RobotState(
                     target_x, target_y, 0
-                )
+                );
             }
         }
 
@@ -146,6 +145,11 @@ class Planner {
                     break;
                 case REACH:
                 case ATTACK:
+                    // If offset is >= len(waypoints), nothing to do
+                    if (waypointOffset >= lenWaypoints) {
+                        return;
+                    }
+
                     // First update the Vive trackers
                     ViveUpdate();
                     float currentX = combined_vive_results.position_x;
@@ -158,24 +162,32 @@ class Planner {
                     // Normalize the angle to be between -180 and 180
                     currentTheta = normalizeAngle(currentTheta);
 
+                    RobotState desiredState = waypoints[waypointOffset];
+
                     if (mode == REACH) {
                         if (printDebug) {
                             Serial.println("Reach mode");
                         }
                         // Reach the desired state
-                        reachLogic(
+                        if (reachLogic(
                             currentX, currentY, currentTheta,
                             desiredState.x, desiredState.y, desiredState.theta,
                             orientationPID
-                        );
+                        )) {
+                            // Increment the offset
+                            waypointOffset += 1;
+                        }
                     }
                     else if (mode == ATTACK) {
                         // Attack the tower
-                        attackLogic(
+                        if (attackLogic(
                             currentX, currentY, currentTheta,
                             desiredState.x, desiredState.y, desiredState.theta,
                             orientationPID
-                        );
+                        )) {
+                            // Increment the offset
+                            waypointOffset += 1;
+                        }
                     }
             }
         }
