@@ -1,4 +1,4 @@
-const char WEBPAGE[] PROGMEM = R"=====(
+const char MODE_SELECT_PAGE[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html lang="en">
 <head>

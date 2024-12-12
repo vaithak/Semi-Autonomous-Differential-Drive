@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include "planning.h"
 #include "web.h"
+#include "mode_select_web.h"
 #include "rgb.h"
 
 const char* ssid = "GM Lab Public WIFI";   
@@ -214,6 +215,10 @@ void handleSetMode() {
     } else {
       planner.setWaypointsAndMode(0, 0, mode);
     }
+  } else {
+    // Send the HTML page
+    server.send_P(200, "text/html", MODE_SELECT_PAGE);
+  }
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
