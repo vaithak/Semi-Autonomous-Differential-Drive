@@ -46,8 +46,27 @@ void setup() {
   // Wi-Fi setup as STA mode
   Serial.println("Connecting to WiFi...");
   WiFi.mode(WIFI_MODE_STA);
-  WiFi.begin(ssid, password);
   WiFi.config(local_IP, gateway, subnet);
+  WiFi.begin(ssid, password);
+
+  // Initialize web server routes regardless of Wi-Fi connection status
+  server.on("/", handleRoot);
+  server.on("/data", handleData);
+  server.on("/setMode", handleSetMode);
+
+  // Start the web server
+  server.begin();
+  Serial.println("Web server started");
+
+  // Initialize WebSocket server
+  webSocket.begin();
+  webSocket.onEvent(webSocketEvent);
+  Serial.println("WebSocket server started");
+
+  // Start UDP
+  udp.begin(udpPort);
+  Serial.print("UDP client started on port ");
+  Serial.println(udpPort);
 
   Serial.print("Waiting for WiFi connection");
   int attempts = 0;
@@ -61,25 +80,6 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("connected to %s on ", ssid);
     Serial.println(WiFi.localIP());
-    
-    // Start server
-    server.begin();
-    server.on("/", handleRoot);
-    server.on("/data", handleData);
-    server.on("/setMode", handleSetMode);
-    Serial.println("Web server started");
-
-    webSocket.begin();                      // Start WebSocket server
-    webSocket.onEvent(webSocketEvent);      // Attach event handler
-    Serial.println("WebSocket server started");
-
-    // Start UDP
-    if(udp.begin(udpPort)) {
-      Serial.println("UDP client started");
-      Serial.print("UDP Port: "); Serial.println(udpPort);
-    } else {
-      Serial.println("UDP client failed to start");
-    }
   } else {
     Serial.println("Failed to connect to WiFi!");
   }
@@ -93,11 +93,23 @@ void setup() {
  */
 void loop() {
   static unsigned long lastPrint = 0;
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    server.handleClient();
-    webSocket.loop();                       // Handle WebSocket communication
-    planner.planLogic();                      // Send steering command to auto.ino
+
+  // Always handle client requests
+  server.handleClient();
+  webSocket.loop();
+
+  // Handle Wi-Fi connection
+  if (WiFi.status() != WL_CONNECTED) {
+    // Try to reconnect to Wi-Fi if connection is lost
+    static unsigned long lastReconnectAttempt = 0;
+    unsigned long currentTime = millis();
+    if (currentTime - lastReconnectAttempt >= 5000) {  // Try every 5 seconds
+      Serial.println("Reconnecting to WiFi...");
+      WiFi.reconnect();
+      lastReconnectAttempt = currentTime;
+    }
+  } else {
+    planner.planLogic();  // Ensure this is called regularly
 
     delay(80);
     handleRGB();
@@ -128,16 +140,6 @@ void loop() {
       serializeJson(doc, jsonString);
       webSocket.broadcastTXT(jsonString);
       lastBroadcast = millis();
-    }
-  } else {
-    // Try to reconnect to WiFi if connection is lost
-    static unsigned long lastReconnectAttempt = 0;
-    unsigned long currentTime = millis();
-    
-    if (currentTime - lastReconnectAttempt >= 5000) {  // Try every 5 seconds
-      Serial.println("Reconnecting to WiFi...");
-      WiFi.reconnect();
-      lastReconnectAttempt = currentTime;
     }
   }
 }

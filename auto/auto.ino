@@ -211,7 +211,7 @@ void setup() {
   setServoAngle(servoDefaultAngle);
 
   // Initialize servo states
-  swingServo = false;
+  swingServo = true;
   servoOff = false;
 }
 
