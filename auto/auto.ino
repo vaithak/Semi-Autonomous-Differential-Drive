@@ -230,6 +230,12 @@ void loop() {
       }
     }
   }
+  // receivedAngle = 0;
+  // receivedSpeed = 50;
+  // strncpy((char*)receivedDirection, "LEFT", sizeof(receivedDirection) - 1);
+  // receivedDirection[sizeof(receivedDirection) - 1] = '\0';
+  // newCommandReceived = true;
+
 
   // Handle periodic tasks
   unsigned long currentTime = millis();
@@ -392,7 +398,7 @@ void updateControlSignals() {
   int current_pwm_right = map(rightRPM, 0, MAX_RPM, 0, LEDC_RESOLUTION);
 
   if (DEBUG) {
-    Serial.printf("Current RPM - Left: %d, Right: %d\n", leftRPM, rightRPM);
+    Serial.printf("Current RPM - Left: %d (direction: %d), Right: %d (direction: %d)\n", leftRPM, leftDirection, rightRPM, rightDirection);
     Serial.printf("Current PWM - Left: %d, Right: %d\n", current_pwm_left, current_pwm_right);
   }
 
