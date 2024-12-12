@@ -14,26 +14,13 @@ Vive - Incomplete
 Hybrid Mode - Incomplete
 */
 
-/*
-const int front_collision_threshold = 130;      // Minimum distance to obstacle in front
-const float Kp_steering = 1.5;                  // Adjusted proportional gain for wall alignment
-const float Kp_alignment = 0.5;                 // Adjusted proportional gain for misalignment correctio
-*/
-
 // Add new constants
 const int OUT_OF_RANGE = -1;
 const int MAX_SENSOR_RANGE = 2000;  // Maximum measurable disftance of the sensor in mm
 const int WALL_FOLLOW_THRESHOLD = 160;          // Main parameter for wall following
-// const int LEFT_WALL_THRESHOLD_PUSH = 180;       // NOT USED
-// const int LEFT_WALL_THRESHOLD_PULL = 200;       // NOT USED
 const int MAX_STEERING_ANGLE_PERCENT = 3;       // Maximum steering angle as a percentage of the maximum
-const int CORNER_DETECTION_DISTANCE = 240;      // Main parameter for corner detection
+const int FRONT_COLLISION_THRESHOLD = 240;      // Minimum distance to obstacle in front
 const float SHARP_TURN_ANGLE = 50;            // Maximum turn angle for corners
-// const float CORNER_KP = 2.0;                 // Aggressive steering for corners
-const float NORMAL_TURN_ANGLE = 6.0;              // Stronger correction for wall following 
-// const float normal_turn_offset = 1.8;        // Offset for normal turn angle (left)
-const float NORMAL_TURN_PUSH = 4.5;              // AWAY FROM WALL (Wall following parameter)
-const float NORMAL_TURN_PULL = 13;               // TOWARDS WALL (Wall following parameter)
 
 
 // Speed control constants (%)
@@ -41,16 +28,15 @@ const int NORMAL_SPEED = 50;    // Reduced normal speed for better control
 const int CORNER_SPEED = 5;    // Speed for corners
 const int WALL_CLOSE_SPEED = 50;  // Speed when close to wall
 
-// Filter parameters (NOT USED)
-const int FILTER_WINDOW = 5;  // Number of samples to average
-const int INVALID_READING = -999;  // Sentinel value for invalid readings
-
 // Function declarations
 void initToFSensors();
 void readToFSensors(int &d_front, int &d_left, int &d_right);
 void wallFollowLogic();
 void sendSteeringCommand(int angle, const char* direction, int speed); // Changed from steer to sendSteeringCommand
 float calculateSteeringAngle(float error);  // Add this line
+
+#define PRINT_TOF_INTERVAL 1000
+uint32_t last_tof_print_time = 0;
 
 // Define pins
 #define SDA_PIN 19    // Common SDA (Data line)
@@ -169,68 +155,137 @@ void readSteeringResult(int &angle, const char* direction, int &speed) {
   speed = NORMAL_SPEED;
 }
 
+// Function to read effective distance from a sensor
+int getEffectiveDistance(int distance) {
+  return (distance == OUT_OF_RANGE || distance > 8000) ? MAX_SENSOR_RANGE : distance;
+}
+
+// Function to detect and avoid any obstacles in front
+bool frontObstacleAvoidance(bool debugPrint = false) {
+  int d_front, d_left, d_right;
+  readToFSensors(d_front, d_left, d_right);
+
+  int effective_front = getEffectiveDistance(d_front);
+  int effective_left = getEffectiveDistance(d_left);
+  int effective_right = getEffectiveDistance(d_right);
+
+  if (debugPrint) {
+    Serial.print("Front: "); Serial.println(d_front == OUT_OF_RANGE ? "OOR" : String(effective_front));
+    Serial.print("Left: "); Serial.println(d_left == OUT_OF_RANGE ? "OOR" : String(effective_left));
+    Serial.print("Right: "); Serial.println(d_right == OUT_OF_RANGE ? "OOR" : String(effective_right));
+  }
+
+  bool detectedObstacle = false;
+  if (effective_front <= FRONT_COLLISION_THRESHOLD) {
+    const char* direction = "FORWARD";
+    int speed = NORMAL_SPEED;  // Default speed
+    float steering_angle = 0;
+
+    // Obstacle detected
+    detectedObstacle = true;
+
+    // Corner handling
+      if (effective_left > effective_right) {
+          direction = "RIGHT";
+          steering_angle = SHARP_TURN_ANGLE;
+          if (debugPrint) {
+              Serial.print("Turning right - steering angle: ");
+              Serial.println(steering_angle);
+          }
+      } else {
+          direction = "LEFT";
+          steering_angle = SHARP_TURN_ANGLE;
+          if (debugPrint) {
+              Serial.print("Turning left - steering angle: ");
+              Serial.println(steering_angle);
+          }
+      }
+      speed = CORNER_SPEED;
+
+      // Send steering command
+      sendSteeringCommand((int)steering_angle, direction, speed);
+  }
+  
+  return detectedObstacle;
+}
+
+// Function to detect if wall on the specified side, if follow == true, then apply steering
+// angle to follow the wall. If follow == false, then just detect if the wall is
+// present below the WALL_FOLLOW_THRESHOLD
+bool wallDetection(bool leftWall = true, bool follow = false, bool printDebug = false) {
+  int dist;
+  if (leftWall)  dist = getLeftDistance();
+  else           dist = getRightDistance();
+
+  int effective_distance = getEffectiveDistance(dist);
+
+  if (effective_distance <= WALL_FOLLOW_THRESHOLD) {
+    if (follow) {
+      const char* direction = "FORWARD";
+      int speed = NORMAL_SPEED;  // Default speed
+
+      // Compute steering angle based on effective distance using PID controller
+      float steering_angle = pidSteering.compute(WALL_FOLLOW_THRESHOLD, effective_distance);
+
+      if (steering_angle > 0) {
+        if (leftWall)   direction = "RIGHT";
+        else            direction = "LEFT";
+        
+        speed = WALL_CLOSE_SPEED;
+        if (printDebug) {
+            Serial.print("Turning ");             Serial.print(leftWall ? "right" : "left");
+            Serial.print(" - steering angle: ");  Serial.println(steering_angle);
+        }
+      } else if (steering_angle < 0) {
+        if (leftWall)   direction = "LEFT";
+        else            direction = "RIGHT";
+          
+        speed = WALL_CLOSE_SPEED;
+        steering_angle = -steering_angle;  // Make angle positive
+        if (printDebug) {
+            Serial.print("Turning left - steering angle: ");
+            Serial.println(steering_angle);
+        }
+      } else {
+          direction = "FORWARD";
+          speed = NORMAL_SPEED;
+          if (printDebug) {
+              Serial.println("Moving forward");
+          }
+          steering_angle = 0;
+      }
+
+      // Send steering command
+      sendSteeringCommand((int)steering_angle, direction, speed);
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
 // Simplify the wallFollowLogic function
-void wallFollowLogic() {
-    int d_front, d_left, d_right;
-    readToFSensors(d_front, d_left, d_right);
+void wallFollowLogic(
+  bool leftWall = true // Wall to follow
+) {
+    bool printDebug = false;
+    if (millis() - last_tof_print_time > PRINT_TOF_INTERVAL) {
+      printDebug = true;
+      last_tof_print_time = millis();
+    }
 
-    // Convert out-of-range readings to max sensor range
-    int effective_front = (d_front == OUT_OF_RANGE || d_front > 8000) ? MAX_SENSOR_RANGE : d_front;
-    int effective_left  = (d_left == OUT_OF_RANGE || d_left > 8000) ? MAX_SENSOR_RANGE : d_left;
-    int effective_right = (d_right == OUT_OF_RANGE || d_right > 8000) ? MAX_SENSOR_RANGE : d_right;
-
-    // Debugging: print sensor values
-    Serial.print("Front: "); Serial.print(d_front == OUT_OF_RANGE ? "OOR" : String(effective_front));
-    Serial.print(" Left: "); Serial.print(d_left == OUT_OF_RANGE ? "OOR" : String(effective_left));
-    Serial.print(" Right: "); Serial.println(d_right == OUT_OF_RANGE ? "OOR" : String(effective_right));
-
+    // Default values for movement
     float steering_angle = 0;
     const char* direction = "FORWARD";
     int speed = NORMAL_SPEED;  // Default speed
 
-    // Enhanced wall following logic
-    if (effective_front <= CORNER_DETECTION_DISTANCE) {
-        // Corner handling
-        if (effective_left > effective_right) {
-            direction = "RIGHT";
-            steering_angle = SHARP_TURN_ANGLE;
-            Serial.print("Turning left - steering angle: ");
-            Serial.println(steering_angle);
-        } else {
-            direction = "LEFT";
-            steering_angle = SHARP_TURN_ANGLE;
-            Serial.print("Turning right - steering angle: ");
-            Serial.println(steering_angle);
-        }
-        speed = CORNER_SPEED;
-    } else {
-      // Compute steering angle based on left distance using PID controller
-      steering_angle = pidSteering.compute(WALL_FOLLOW_THRESHOLD, effective_left);
-
-      if (steering_angle > 0) {
-          direction = "RIGHT";
-          speed = WALL_CLOSE_SPEED;
-          Serial.print("Turning right - steering angle: ");
-          Serial.println(steering_angle);
-      } else if (steering_angle < 0) {
-          direction = "LEFT";
-          speed = WALL_CLOSE_SPEED;
-          steering_angle = -steering_angle;  // Make angle positive
-          Serial.print("Turning left - steering angle: ");
-          Serial.println(steering_angle);
-      } else {
-          direction = "FORWARD";
-          speed = NORMAL_SPEED;
-          Serial.println("Moving forward");
-          steering_angle = 0;
-      }
-    }
-
-    // If no wall detected, move forward
-    sendSteeringCommand((int)steering_angle, direction, speed);
+    // Reimplement the wall following logic using helper functions
+    if (frontObstacleAvoidance(printDebug))               return;
+    else if (wallDetection(leftWall, true, printDebug))   return;
+    else
+      // No obstacles detected
+      sendSteeringCommand((int)steering_angle, direction, speed);
 }
-
-
-// Optional: Add function for push steering angle (away from wall)
 
 #endif

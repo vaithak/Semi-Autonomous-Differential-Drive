@@ -12,9 +12,8 @@
 Vive510 vive1(SIGNALPIN1);
 Vive510 vive2(SIGNALPIN2);
 
-uint16_t last_vive_print_time = 0;
-
-#define PRINT_INTERVAL 1000
+#define PRINT_VIVE_INTERVAL 2000
+uint32_t last_vive_print_time = 0;
 
 // Struct to store the Vive results
 struct ViveResults {
@@ -91,10 +90,6 @@ uint32_t med3filt(uint32_t a, uint32_t b, uint32_t c) {
 // Function to update the Vive position based on the given vive object
 // and update the vive results struct in place.
 void UpdateVivePosition (Vive510& vive_obj, ViveResults& vive_results) {
-  if (millis() - last_vive_print_time > PRINT_INTERVAL) {
-    Serial.println("trying");
-  }
-
     if (vive_obj.status() == VIVE_RECEIVING) {
         vive_results.oldx2 = vive_results.oldx1;
         vive_results.oldy2 = vive_results.oldy1;
@@ -149,7 +144,7 @@ void ViveUpdate() {
     UpdateCombinedCoordinatesAndOrientation();
 
     // Print the combined results
-    if (millis() - last_vive_print_time > PRINT_INTERVAL) {
+    if (millis() - last_vive_print_time > PRINT_VIVE_INTERVAL) {
         Serial.print("Vive 1: ");
         Serial.print(vive1_results.x_filtered);
         Serial.print(", ");

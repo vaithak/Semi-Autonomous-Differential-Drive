@@ -7,7 +7,8 @@
 
 // Create enum for defining the modes of operation
 enum Mode {
-    WALL_FOLLOW,
+    LEFT_WALL_FOLLOW,
+    RIGHT_WALL_FOLLOW,
     REACH,  // Reach a particular point and orientation
     ATTACK  // Reach a particular point and orientation and attack the tower.
 };
@@ -40,7 +41,7 @@ class Planner {
 
     public:
         Planner() {
-            mode = WALL_FOLLOW;
+            mode = LEFT_WALL_FOLLOW;
         }
 
         void setup() {
@@ -63,8 +64,11 @@ class Planner {
 
         void planLogic() {
             switch (mode) {
-                case WALL_FOLLOW:
-                    wallFollowLogic();
+                case LEFT_WALL_FOLLOW:
+                    wallFollowLogic(true);
+                    break;
+                case RIGHT_WALL_FOLLOW:
+                    wallFollowLogic(false);
                     break;
                 case REACH:
                 case ATTACK:
