@@ -1,3 +1,6 @@
+#ifndef PID_H
+#define PID_H
+
 // Implement a PID controller class
 class PIDController {
   private:
@@ -45,3 +48,5 @@ class PIDController {
       return output;
     }
 };
+
+#endif

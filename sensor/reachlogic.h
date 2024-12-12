@@ -11,7 +11,7 @@
 bool hasReachedPosition(float current_x, float current_y, float desired_x, float desired_y) {
     // Manhattan distance
     float distance = abs(current_x - desired_x) + abs(current_y - desired_y);
-    return distance <= REACHABLE_THRESHOLD;
+    return distance <= REACHABLE_DISTANCE_THRESHOLD;
 }
 
 // Function to check if the robot has reached the desired orientation
@@ -25,6 +25,30 @@ float normalizeAngle(float angle) {
     while (angle > 180)  angle -= 360;
     while (angle < -180) angle += 360;
     return angle;
+}
+
+// Function to reach the desired orientation.
+// Return true if the robot is still moving towards the orientation
+// Return false if the robot has reached the orientation, and did not move in this iteration
+bool reachOrientation(float current_theta, float desired_theta, PIDController orientationPID) {
+    // Check if the robot has reached the desired orientation
+    if (hasReachedOrientation(current_theta, desired_theta)) {
+        return false;
+    }
+
+    // Use PID to align the orientation
+    float diff_theta = desired_theta - current_theta;
+    diff_theta = normalizeAngle(diff_theta);
+    int steering_angle = (int)(orientationPID.compute(0, diff_theta));
+
+    // Send the steering command to align the orientation
+    if (steering_angle > 0) {
+        sendSteeringCommand(steering_angle, "LEFT", 0);
+    } else if (steering_angle < 0) {
+        sendSteeringCommand(-steering_angle, "RIGHT", 0);
+    } else {
+        sendSteeringCommand(0, "FORWARD", 0);
+    }
 }
 
 // Function to move the robot towards the desired point
@@ -74,30 +98,6 @@ bool moveTowardsPoint(
 }
 
 
-// Function to reach the desired orientation.
-// Return true if the robot is still moving towards the orientation
-// Return false if the robot has reached the orientation, and did not move in this iteration
-bool reachOrientation(float current_theta, float desired_theta, PIDController orientationPID) {
-    // Check if the robot has reached the desired orientation
-    if (hasReachedOrientation(current_theta, desired_theta)) {
-        return false;
-    }
-
-    // Use PID to align the orientation
-    float diff_theta = desired_theta - current_theta;
-    diff_theta = normalizeAngle(diff_theta);
-    int steering_angle = (int)(orientationPID.compute(0, diff_theta));
-
-    // Send the steering command to align the orientation
-    if (steering_angle > 0) {
-        sendSteeringCommand(steering_angle, "LEFT", 0);
-    } else if (steering_angle < 0) {
-        sendSteeringCommand(-steering_angle, "RIGHT", 0);
-    } else {
-        sendSteeringCommand(0, "FORWARD", 0);
-    }
-}
-
 // Execute 
 void reachLogic(
     float current_x,
@@ -113,6 +113,7 @@ void reachLogic(
     if (moveTowardsPoint(
         current_x, current_y, 
         desired_x, desired_y,
+        current_theta,
         orientationPID)) {
         return;
     }

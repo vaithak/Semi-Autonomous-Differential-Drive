@@ -46,16 +46,16 @@ class Planner {
         // Last time the planner printed debug information
         uint32_t last_planning_print_time = 0;
 
-        PIDController orientationPID(
-            Kp_steering, Ki_steering, Kd_steering, 
-            10, // useless like me
-            -MAX_STEERING_ANGLE_PERCENT, MAX_STEERING_ANGLE_PERCENT
-        );
+        PIDController orientationPID;
 
     public:
-        Planner() {
-            mode = LEFT_WALL_FOLLOW;
-        }
+        // Constructor - initialize mode and orientation PID
+        Planner() : mode(LEFT_WALL_FOLLOW), 
+                    orientationPID(
+                        Kp_steering, Ki_steering, Kd_steering, 
+                        10, // useless like me
+                        -MAX_STEERING_ANGLE_PERCENT, MAX_STEERING_ANGLE_PERCENT
+                    ) {}
 
         void setup() {
             // Initialize the ToF sensors
