@@ -130,6 +130,8 @@ class Planner {
                 printDebug = true;
                 last_planning_print_time = millis();
             }
+            // First update the Vive trackers
+            ViveUpdate();
             switch (mode) {
                 case LEFT_WALL_FOLLOW:
                     if (printDebug) {
@@ -150,8 +152,6 @@ class Planner {
                         return;
                     }
 
-                    // First update the Vive trackers
-                    ViveUpdate();
                     float currentX = combined_vive_results.position_x;
                     float currentY = combined_vive_results.position_y;
                     float currentTheta = combined_vive_results.orientation_theta;

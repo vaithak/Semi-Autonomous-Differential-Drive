@@ -6,7 +6,7 @@
  */
 #include "vive510.h"
 
-#define SIGNALPIN1 34 // pin receiving signal from Vive circuit - TODO Change to correct pin
+#define SIGNALPIN1 6 // pin receiving signal from Vive circuit - TODO Change to correct pin
 #define SIGNALPIN2 7 // pin receiving signal from Vive circuit - TODO Change to correct pin
 
 Vive510 vive1(SIGNALPIN1);
