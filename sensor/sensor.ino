@@ -4,8 +4,8 @@
 #include <WiFiUdp.h>     
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
-#include <ArduinoJson.h>         
-#include "wall_follow.h"
+#include <ArduinoJson.h>
+#include "planning.h"
 #include "web.h"
 #include "rgb.h"
 
@@ -23,6 +23,7 @@ const unsigned int udpPort = 8888;         // UDP port to send data to
 WiFiUDP udp;
 
 WebServer server(80);
+Planner planner;
 
 WebSocketsServer webSocket = WebSocketsServer(81);  // Initialize WebSocket server
 
@@ -38,10 +39,8 @@ void setup() {
   delay(1000);  // Add delay to ensure serial monitor is ready
   Serial.println("\n\nStarting Sensor Node...");
 
-  // Initialize sensors first
-  Serial.println("Initializing ToF sensors...");
-  initToFSensors();
-  Serial.println("ToF sensors initialized successfully!");
+  // Initialize the planner
+  planner.setup();
 
   // Wi-Fi setup as STA mode
   Serial.println("Connecting to WiFi...");
@@ -96,7 +95,7 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED) {
     server.handleClient();
     webSocket.loop();                       // Handle WebSocket communication
-    wallFollowLogic();                      // Send steering command to auto.ino
+    planner.planLogic();                      // Send steering command to auto.ino
 
     delay(80);
     handleRGB();
