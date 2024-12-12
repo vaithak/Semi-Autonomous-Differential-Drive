@@ -40,8 +40,14 @@ class Planner {
         Mode mode;
 
         // Store the desired coordinates and orientation
-        // for reach and attack modes
-        RobotState desiredState;
+        // for reach and attack modes as an array of waypoints.
+        RobotState waypoints[10];
+
+        // Offset for which waypoint we are executing for now
+        int waypointOffset = 0;
+
+        // Len of waypoints
+        int lenWaypoints = 0;
 
         // Last time the planner printed debug information
         uint32_t last_planning_print_time = 0;
@@ -73,6 +79,50 @@ class Planner {
 
         void setDesiredState(RobotState desiredState) {
             this->desiredState = desiredState;
+        }
+
+        void setWaypointsAndMode(int target_x, int target_y, char* mode) {
+            // Set the mode
+            if (strcmp(mode, "leftWallFollow") == 0) {
+                this->mode = LEFT_WALL_FOLLOW;
+            } else if (strcmp(mode, "rightWallFollow") == 0) {
+                this->mode = RIGHT_WALL_FOLLOW;
+            } else if (strcmp(mode, "attackRampBlueTower") == 0) {
+                // TODO: fix
+                this->waypoints[0] = ramp_blue_tower;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "attackRampRedTower") == 0) {
+                // TODO: fix
+                this->waypoints[0] = ramp_red_tower;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "attackGroundNexusRight") == 0) {
+                // TODO: fix
+                this->waypoints[0] = nexus_red;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "attackGroundNexusLeft") == 0) {
+                // TODO: fix
+                this->waypoints[0] = nexus_blue;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "attackBlueGroundNexusCenter") == 0) {
+                // TODO: fix
+                this->waypoints[0] = nexus_blue;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "attackRedGroundNexusCenter") == 0) {
+                // TODO: fix
+                this->waypoints[0] = nexus_red;
+                this->mode = ATTACK;
+                this->lenWaypoints = 1;
+            } else if (strcmp(mode, "gridMode") == 0) {
+                // TODO: fix
+                this->waypoints[0] = RobotState(
+                    target_x, target_y, 0
+                )
+            }
         }
 
         void planLogic() {

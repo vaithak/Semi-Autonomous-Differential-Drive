@@ -65,6 +65,7 @@ void setup() {
     server.begin();
     server.on("/", handleRoot);
     server.on("/data", handleData);
+    server.on("/setMode", handleSetMode);
     Serial.println("Web server started");
 
     webSocket.begin();                      // Start WebSocket server
@@ -191,6 +192,28 @@ void handleData() {
 // Implement handleRoot function similar to auto.ino
 void handleRoot() {
   server.send_P(200, "text/html", WEBPAGE);
+}
+
+// Function to receive mode from web interface
+void handleSetMode() {
+  if (server.hasArg("mode")) {
+    // mode is a string that can be among
+    // "leftWallFollow", "rightWallFollow",
+    // "attackRampBlueTower", "attackRampRedTower",
+    // "attackGroundNexusRight", "attackGroundNexusLeft",
+    // "attackBlueGroundNexusCenter", "attackRedGroundNexusCenter",
+    // "gridMode" - for attacking TA Bot
+    const char* mode = server.arg("mode").c_str();
+    if (strcmp(mode, "gridMode") == 0) {
+      // Extract x and y coordinates
+      if (server.hasArg("x") && server.hasArg("y")) {
+        int x = server.arg("x").toInt();
+        int y = server.arg("y").toInt();
+        planner.setWaypointsAndMode(x, y, mode);
+      }
+    } else {
+      planner.setWaypointsAndMode(0, 0, mode);
+    }
 }
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
