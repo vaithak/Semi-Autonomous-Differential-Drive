@@ -192,11 +192,15 @@ void handleData() {
 
 // Implement handleRoot function similar to auto.ino
 void handleRoot() {
+  // Log that the root page is requested
+  Serial.println("Root page requested");
   server.send_P(200, "text/html", WEBPAGE);
 }
 
 // Function to receive mode from web interface
 void handleSetMode() {
+  Serial.println("Request for setting mode received");
+
   if (server.hasArg("mode")) {
     // mode is a string that can be among
     // "leftWallFollow", "rightWallFollow",
