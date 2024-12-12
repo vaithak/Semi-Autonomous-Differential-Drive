@@ -105,8 +105,25 @@ WebServer server(80);  // Add this with other global variables at the top
 // Add to global variables
 bool autonomousMode = true;  // Default to autonomous mode
 
-// Add these function declarations at the top with other function declarations
 void handleControl();
+
+// Add constants for servo control
+const int servoPWMPin = 10;
+const int servoMinAngle = 0;
+const int servoMaxAngle = 180;
+const int servoDefaultAngle = 90;
+const int servoSwingAngle = 45;
+const int servoMinPulse = 500;  // Min pulse width in microseconds (0.5ms)
+const int servoMaxPulse = 2500; // Max pulse width in microseconds (2.5ms)
+const int servoMinDuty = (servoMinPulse * (1 << LEDC_RESOLUTION_BITS)) / 20000;
+const int servoMaxDuty = (servoMaxPulse * (1 << LEDC_RESOLUTION_BITS)) / 20000;
+
+// Add global variables for servo control
+bool swingServo = false;
+bool servoOff = false;
+
+// Add global variable for swing speed
+int swingSpeed = 1; // Adjust as needed
 
 // Interrupt function to update the encoder position, add IRAM_ATTR to run in IRAM
 void IRAM_ATTR updateLeftEncoder() {
@@ -186,6 +203,16 @@ void setup() {
   } else {
     Serial.println("UDP server failed to start");
   }
+
+  // Initialize PWM for servo
+  ledcAttach(servoPWMPin, LEDC_FREQUENCY, LEDC_RESOLUTION_BITS);
+
+  // Set servo to default angle
+  setServoAngle(servoDefaultAngle);
+
+  // Initialize servo states
+  swingServo = false;
+  servoOff = false;
 }
 
 /**
@@ -267,6 +294,9 @@ void loop() {
     Serial.printf("Controlled Left PWM: %d, Controlled Right PWM: %d\n", controlled_left_pwm, controlled_right_pwm);
   }
   sendMotorSignals(controlled_left_pwm, desiredLeftDirection, controlled_right_pwm, desiredRightDirection);
+
+  // Replace servo handling code with handleServo function
+  handleServo(servoOff, swingServo, swingSpeed);
 }
 
 // Function to stop the car
@@ -525,4 +555,42 @@ void handleControl() {
   } else {
     server.send(400, "text/plain", "Bad Request");
   }
+}
+
+// Function to map angle to duty cycle
+unsigned int angleToDuty(int angle) {
+    return map(angle, servoMinAngle, servoMaxAngle, servoMinDuty, servoMaxDuty);
+}
+
+// Function to set servo angle
+void setServoAngle(int angle) {
+    // Limit angle between servoMinAngle and servoMaxAngle
+    if (angle < servoMinAngle) angle = servoMinAngle;
+    if (angle > servoMaxAngle) angle = servoMaxAngle;
+    unsigned int duty = angleToDuty(angle);
+    ledcWrite(servoPWMPin, duty);
+}
+
+// Function to swing the servo between angles
+void swingServoFunction(int swingSpeed) {
+    static int servoAngle = servoDefaultAngle - servoSwingAngle;
+    static int servoIncrement = swingSpeed; // Use swingSpeed for increment
+
+    setServoAngle(servoAngle);
+
+    servoAngle += servoIncrement;
+    if (servoAngle >= servoDefaultAngle + servoSwingAngle || servoAngle <= servoDefaultAngle - servoSwingAngle) {
+        servoIncrement = -servoIncrement; // Reverse direction
+    }
+}
+
+// Add handleServo function
+void handleServo(bool servoOff, bool swingServo, int swingSpeed) {
+    if (servoOff) {
+        setServoAngle(servoMinAngle); // Servo is OFF, set to 0 degrees
+    } else if (swingServo) {
+        swingServoFunction(swingSpeed); // Swing servo
+    } else {
+        setServoAngle(servoDefaultAngle); // Servo is ON, set to default angle
+    }
 }
