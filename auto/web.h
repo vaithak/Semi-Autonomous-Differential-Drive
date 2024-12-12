@@ -184,7 +184,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
     function updateMotor() {
       const speed = speedSlider.value;
       const direction = directionSelect.value;
-      const turn = turnSlider.value;
+      const turn = turnSlider.value * -1;
       fetch(`/setMotor?speed=${speed}&forwardBackward=${direction}&turnRate=${turn}`);
     }
 

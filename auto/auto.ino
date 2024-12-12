@@ -194,6 +194,7 @@ void setup() {
   server.on("/setPWM", handleSetPWM);
   server.on("/setPID", handleControl);  // Reuse PID handler from controller.ino
   server.on("/setMode", handleSetMode);
+  server.on("/setMotor", handleSetMotor);
   server.begin();
   Serial.println("HTTP server started");
 
@@ -554,6 +555,25 @@ void handleControl() {
     Serial.printf("Control parameters updated: KP: %f, KI: %f, KD: %f, ENABLED: %d\n", KP, KI, KD, ENABLE_CONTROL);
   } else {
     server.send(400, "text/plain", "Bad Request");
+  }
+}
+
+// Set motor signals based on the desired PWM values
+// Function to handle the motor control request
+void handleSetMotor() {
+  if (server.hasArg("speed") && server.hasArg("forwardBackward") && server.hasArg("turnRate")) {
+
+    float motor_speed = server.arg("speed").toFloat(); // percent from 0 to 100
+    String forward_backward = server.arg("forwardBackward"); // "Forward" or "Backward"
+    float turn_rate = server.arg("turnRate").toFloat(); // percent from -50 to 50
+
+    // Use these parameters to call steer appropriately
+    motor_speed = motor_speed * (forward_backward == "Forward" ? 1 : -1);
+    if (turn_rate < 0) {
+      steer((int)-turn_rate, "RIGHT", motor_speed);
+    } else {
+      steer((int)turn_rate, "LEFT", motor_speed);
+    }
   }
 }
 
