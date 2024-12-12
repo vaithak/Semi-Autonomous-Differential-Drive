@@ -4,6 +4,10 @@
 
 #include "wall_follow.h"
 #include "vive.h"
+#include "pid.h"
+#include "reachlogic.h"
+
+#define PLANNING_PRINT_INTERVAL 1000
 
 // Create enum for defining the modes of operation
 enum Mode {
@@ -39,6 +43,15 @@ class Planner {
         // for reach and attack modes
         RobotState desiredState;
 
+        // Last time the planner printed debug information
+        uint32_t last_planning_print_time = 0;
+
+        PIDController orientationPID(
+            Kp_steering, Ki_steering, Kd_steering, 
+            10, // useless like me
+            -MAX_STEERING_ANGLE_PERCENT, MAX_STEERING_ANGLE_PERCENT
+        );
+
     public:
         Planner() {
             mode = LEFT_WALL_FOLLOW;
@@ -63,27 +76,56 @@ class Planner {
         }
 
         void planLogic() {
+            bool printDebug = false;
+            if (millis() - last_planning_print_time > PLANNING_PRINT_INTERVAL) {
+                printDebug = true;
+                last_planning_print_time = millis();
+            }
             switch (mode) {
                 case LEFT_WALL_FOLLOW:
+                    if (printDebug) {
+                        Serial.println("Left wall follow mode");
+                    }
                     wallFollowLogic(true);
                     break;
                 case RIGHT_WALL_FOLLOW:
+                    if (printDebug) {
+                        Serial.println("Right wall follow mode");
+                    }
                     wallFollowLogic(false);
                     break;
                 case REACH:
                 case ATTACK:
                     // First update the Vive trackers
                     ViveUpdate();
+                    float currentX = combined_vive_results.position_x;
+                    float currentY = combined_vive_results.position_y;
+                    float currentTheta = combined_vive_results.orientation_theta;
 
-                    // TODO: Implement the logic for reaching the desired state
+                    // Convert vive's orientation to match the robot's orientation
+                    float offset = 0; // TODO: Add the offset to match the robot's orientation
+                    currentTheta = currentTheta + offset;
+                    // Normalize the angle to be between -180 and 180
+                    currentTheta = normalizeAngle(currentTheta);
 
-                    
-                    // Now, assume that we have reached the desired state
-                    // and attack if the mode is ATTACK
-                    if (mode == ATTACK) {
+                    if (mode == REACH) {
+                        if (printDebug) {
+                            Serial.println("Reach mode");
+                        }
+                        // Reach the desired state
+                        reachLogic(
+                            currentX, currentY, currentTheta,
+                            desiredState.x, desiredState.y, desiredState.theta,
+                            orientationPID
+                        );
+                    }
+                    else if (mode == ATTACK) {
                         // Attack the tower
-                        // TODO: Implement the attack logic
-
+                        attackLogic(
+                            currentX, currentY, currentTheta,
+                            desiredState.x, desiredState.y, desiredState.theta,
+                            orientationPID
+                        );
                     }
             }
         }
