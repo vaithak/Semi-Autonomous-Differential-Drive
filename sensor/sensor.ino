@@ -41,11 +41,12 @@ void setup() {
   delay(1000);  // Add delay to ensure serial monitor is ready
   Serial.println("\n\nStarting Sensor Node...");
 
-  // Initialize the planner
-  planner.setup();
 
   // Initialize I2C with custom SDA and SCL pins
   Wire.begin(SDA_PIN, SCL_PIN);
+  // Initialize the planner
+  planner.setup();
+
 
   // Initialize the top hat sensor
 
@@ -151,9 +152,10 @@ void loop() {
 
     // Read top hat data
     uint8_t topHatData = readTopHatData();
+    Serial.printf("Top hat data: %d\n", topHatData);
     // Process the top hat data...
     // We need to handle it at 2Hz through WIFI somehow
-    // I'm thinking of sending it over UDP to auto.ino, separately from the sensor data
+    // I'm thinking of sending it over UDP to auto.ino, separately from the sensor 
   }
 }
 
@@ -255,8 +257,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       // Handle incoming messages if needed
       break;
     default:
-  }
-      break;
-  }
-}
-}
+      break;  
+  }  
+}  // Close the function properly

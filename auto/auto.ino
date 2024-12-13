@@ -105,7 +105,6 @@ WebServer server(80);  // Add this with other global variables at the top
 // Add to global variables
 bool autonomousMode = true;  // Default to autonomous mode
 
-void handleControl();
 
 // Add constants for servo control
 const int servoPWMPin = 10;
@@ -191,8 +190,6 @@ void setup() {
 
   // Update setup to include new endpoints
   server.on("/", handleRoot);
-  server.on("/setPWM", handleSetPWM);
-  server.on("/setPID", handleControl);  // Reuse PID handler from controller.ino
   server.on("/setMode", handleSetMode);
   server.on("/setMotor", handleSetMotor);
   server.begin();
