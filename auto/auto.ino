@@ -508,20 +508,6 @@ void steer(int angle, const char* direction, int speed) {
   desiredRightDirection = right_direction;
 }
 
-// Add handler for PWM setting
-/**
- * Handles PWM setting requests from web interface
- * Updates the default PWM value used for `motor control
- */
-void handleSetPWM() {
-  if (server.hasArg("defaultPWM")) {
-    defaultPWM = server.arg("defaultPWM").toInt();
-    server.send(200, "text/plain", "Default PWM updated");
-    Serial.printf("Default PWM updated to: %d\n", defaultPWM);
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
-}
 
 // Add root handler function
 void handleRoot() {
@@ -544,20 +530,6 @@ void handleSetMode() {
   }
 }
 
-// Add the handleControl function implementation before setup()
-void handleControl() {
-  if (server.hasArg("kp") && server.hasArg("ki") && server.hasArg("kd") && server.hasArg("enabled")) {
-    KP = server.arg("kp").toFloat();
-    KI = server.arg("ki").toFloat();
-    KD = server.arg("kd").toFloat();
-    ENABLE_CONTROL = server.arg("enabled").toInt();
-    server.send(200, "text/plain", "Control parameters updated");
-    Serial.printf("Control parameters updated: KP: %f, KI: %f, KD: %f, ENABLED: %d\n", KP, KI, KD, ENABLE_CONTROL);
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
-}
-
 // Set motor signals based on the desired PWM values
 // Function to handle the motor control request
 void handleSetMotor() {
@@ -575,6 +547,20 @@ void handleSetMotor() {
       steer((int)turn_rate, "LEFT", motor_speed);
     }
   }
+}
+
+void handleSetServo() {
+  if (server.hasArg("servo")) {
+    String servoState = server.arg("servo");
+    if (servoState == "off") {
+      servoOff = true;
+      swingServo = false;
+    } else if (servoState == "on") {
+      servoOff = false;
+      swingServo = true;
+    }
+  }
+  server.send(200, "text/plain", "Servo parameters updated");
 }
 
 // Function to map angle to duty cycle

@@ -105,7 +105,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
     </div>
 
     <div class="motor-control">
-      <h3>Manual Control</h3>
+      <h3>Manual Control</h3>      
       <div class="slider-container">
         <label>Speed (0-100%):</label>
         <input type="range" id="speedSlider" min="0" max="100" value="0">
@@ -123,36 +123,12 @@ const char WEBPAGE[] PROGMEM = R"=====(
         <input type="range" id="turnSlider" min="-50" max="50" value="0">
         <span id="turnValue">0</span>
       </div>
-    </div>
-
-    <div class="settings-panel">
-      <h3>Settings</h3>
-      <div class="slider-container">
-        <label>Default PWM (0-1023):</label>
-        <input type="range" id="pwmSlider" min="0" max="1023" value="500">
-        <span id="pwmValue">500</span>
-      </div>
-
-      <h3>PID Control</h3>
-      <div class="pid-controls">
-        <div class="slider-container">
-          <label>Kp:</label>
-          <input type="number" id="kp" step="0.1" value="0">
-        </div>
-        <div class="slider-container">
-          <label>Ki:</label>
-          <input type="number" id="ki" step="0.1" value="0">
-        </div>
-        <div class="slider-container">
-          <label>Kd:</label>
-          <input type="number" id="kd" step="0.1" value="0">
-        </div>
-        <div>
-          <label>
-            <input type="checkbox" id="pidEnabled"> Enable PID
-          </label>
-        </div>
-        <button onclick="updatePID()">Update PID</button>
+      <h3>Servo Control</h3>
+      <div calss="slider-container">
+        <label>Servo (On/Off)</label>
+        <select id="servo">
+          <option value="On">On</option>
+          <option value="Off">Off</option>
       </div>
     </div>
   </div>
@@ -162,14 +138,48 @@ const char WEBPAGE[] PROGMEM = R"=====(
     const modeRadios = document.getElementsByName('mode');
     const motorControl = document.querySelector('.motor-control');
 
+    let isManualMode = false;
+
+    function handleKeyDown(event) {
+      if (!isManualMode) return;
+      if (event.key === 'A' || event.key === 'ArrowLeft') {
+        turnSlider.value = -50;
+        turnValue.textContent = -50;
+        updateMotor();
+      } else if (event.key === 'D' || event.key === 'ArrowRight') {
+        turnSlider.value = 50;
+        turnValue.textContent = 50;
+        updateMotor();
+      }
+    }
+
+    function handleKeyUp(event) {
+      if (!isManualMode) return;
+      if (event.key === 'A' || event.key === 'ArrowLeft' || event.key === 'D' || event.key === 'ArrowRight') {
+        turnSlider.value = 0;
+        turnValue.textContent = 0;
+        updateMotor();
+      }
+    }
+
     modeRadios.forEach(radio => {
       radio.addEventListener('change', function() {
         if (this.value === 'manual') {
           motorControl.style.display = 'block';
           fetch('/setMode?mode=manual');
+          isManualMode = true;
+
+          // Add key event listeners
+          document.addEventListener('keydown', handleKeyDown);
+          document.addEventListener('keyup', handleKeyUp);
         } else {
           motorControl.style.display = 'none';
           fetch('/setMode?mode=autonomous');
+          isManualMode = false;
+
+          // Remove key event listeners
+          document.removeEventListener('keydown', handleKeyDown);
+          document.removeEventListener('keyup', handleKeyUp);
         }
       });
     });
@@ -180,12 +190,19 @@ const char WEBPAGE[] PROGMEM = R"=====(
     const turnSlider = document.getElementById('turnSlider');
     const turnValue = document.getElementById('turnValue');
     const directionSelect = document.getElementById('direction');
+    const servoSelect = document.getElementById("servo");
 
     function updateMotor() {
       const speed = speedSlider.value;
       const direction = directionSelect.value;
       const turn = turnSlider.value * -1;
       fetch(`/setMotor?speed=${speed}&forwardBackward=${direction}&turnRate=${turn}`);
+    }
+
+    function updateServo() {
+        const servo = servoSelect.value;
+        fetch(`/setServo?servo=${servo}`);
+
     }
 
     // Event listeners
@@ -203,26 +220,10 @@ const char WEBPAGE[] PROGMEM = R"=====(
       if (motorControl.style.display === 'block') updateMotor();
     }
 
-    // PWM control
-    const pwmSlider = document.getElementById('pwmSlider');
-    const pwmValue = document.getElementById('pwmValue');
-
-    pwmSlider.oninput = function() {
-      pwmValue.textContent = this.value;
+    servoSelect.onchange = function() {
+      if (motorControl.style.display === 'block') updateServo();
     }
 
-    pwmSlider.onchange = function() {
-      fetch('/setPWM?defaultPWM=' + this.value);
-    }
-
-    // PID control
-    function updatePID() {
-      const kp = document.getElementById('kp').value;
-      const ki = document.getElementById('ki').value;
-      const kd = document.getElementById('kd').value;
-      const enabled = document.getElementById('pidEnabled').checked ? 1 : 0;
-      fetch(`/setPID?kp=${kp}&ki=${ki}&kd=${kd}&enabled=${enabled}`);
-    }
   </script>
 </body>
 </html>
