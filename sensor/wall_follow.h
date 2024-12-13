@@ -18,7 +18,7 @@ Hybrid Mode - Incomplete
 const int OUT_OF_RANGE = -1;
 const int MAX_SENSOR_RANGE = 2000;  // Maximum measurable disftance of the sensor in mm
 const int WALL_FOLLOW_THRESHOLD = 160;          // Main parameter for wall following
-const int MAX_STEERING_ANGLE_PERCENT = 3;       // Maximum steering angle as a percentage of the maximum
+const int MAX_STEERING_ANGLE_PERCENT = 4;       // Maximum steering angle as a percentage of the maximum
 const int FRONT_COLLISION_THRESHOLD = 240;      // Minimum distance to obstacle in front
 const float SHARP_TURN_ANGLE = 50;            // Maximum turn angle for corners
 
@@ -53,7 +53,7 @@ Adafruit_VL53L0X loxRight = Adafruit_VL53L0X();
 // PID controller for wall following - controls the steering angle
 const float Kp_steering = 0.6;  // Proportional gain
 const float Ki_steering = 0.0;  // Integral gain
-const float Kd_steering = 0.5;  // Derivative gain
+const float Kd_steering = 0.9;  // Derivative gain
 PIDController pidSteering(Kp_steering, Ki_steering, Kd_steering, 10, -MAX_STEERING_ANGLE_PERCENT, MAX_STEERING_ANGLE_PERCENT);
 
 // Add sensor status flags
