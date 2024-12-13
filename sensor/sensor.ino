@@ -9,6 +9,7 @@
 #include "web.h"
 #include "mode_select_web.h"
 #include "rgb.h"
+#include "top_hat.h"
 
 const char* ssid = "GM Lab Public WIFI";   
 const char* password = "";             
@@ -43,8 +44,14 @@ void setup() {
   // Initialize the planner
   planner.setup();
 
+  // Initialize I2C with custom SDA and SCL pins
+  Wire.begin(SDA_PIN, SCL_PIN);
+
+  // Initialize the top hat sensor
+
+
   // Wi-Fi setup as STA mode
-  Serial.println("Connecting to WiFi...");
+  WiFi.mode(WIFI_MODE_STA);
   WiFi.mode(WIFI_MODE_STA);
   WiFi.config(local_IP, gateway, subnet);
   WiFi.begin(ssid, password);
@@ -141,6 +148,12 @@ void loop() {
       webSocket.broadcastTXT(jsonString);
       lastBroadcast = millis();
     }
+
+    // Read top hat data
+    uint8_t topHatData = readTopHatData();
+    // Process the top hat data...
+    // We need to handle it at 2Hz through WIFI somehow
+    // I'm thinking of sending it over UDP to auto.ino, separately from the sensor data
   }
 }
 
@@ -242,6 +255,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       // Handle incoming messages if needed
       break;
     default:
+  }
       break;
   }
+}
 }

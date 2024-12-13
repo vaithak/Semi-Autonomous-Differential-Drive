@@ -45,7 +45,7 @@ uint32_t last_tof_print_time = 0;
 #define XSHUT_LEFT 5  // Left sensor XSHUT pin
 #define XSHUT_RIGHT 18 // Right sensor XSHUT pin
 
-// Adafruit_VL53L1X loxFront = Adafruit_VL53L1X(); // Uncomment for VL53L1X)
+// Adafruit_VL53L1X loxFront = Adafruit_VL53L1X(); // Uncomment for VL53L1X
 Adafruit_VL53L0X loxFront = Adafruit_VL53L0X();
 Adafruit_VL53L0X loxLeft = Adafruit_VL53L0X();
 Adafruit_VL53L0X loxRight = Adafruit_VL53L0X();
@@ -64,7 +64,6 @@ bool rightSensorOK = false;
 // Simplify the initToFSensors() function to match working implementation
 void initToFSensors() {
   // Configure I2C
-  Wire.begin(SDA_PIN, SCL_PIN);
   delay(10);
   pinMode(XSHUT_FRONT, OUTPUT);
   pinMode(XSHUT_LEFT, OUTPUT);
