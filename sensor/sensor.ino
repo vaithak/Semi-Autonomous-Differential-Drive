@@ -46,7 +46,7 @@ void setup() {
   Wire.begin(SDA_PIN, SCL_PIN);
   // Initialize the planner
   planner.setup();
-
+  initTopHat();
 
   // Initialize the top hat sensor
 
@@ -131,6 +131,7 @@ void loop() {
 
     // Send sensor data over WebSocket
     static unsigned long lastBroadcast = 0;
+    ungisned long lastRead = 0;
     if (millis() - lastBroadcast > 100) {   // Broadcast every 100ms
       int d_front, d_left, d_right;
       int steering_angle, speed;
@@ -150,14 +151,40 @@ void loop() {
       lastBroadcast = millis();
     }
 
-    // Read top hat data
-    uint8_t topHatData = readTopHatData();
-    Serial.printf("Top hat data: %d\n", topHatData);
-    // Process the top hat data...
-    // We need to handle it at 2Hz through WIFI somehow
-    // I'm thinking of sending it over UDP to auto.ino, separately from the sensor 
+    // Read top hat data every 500ms
+    if (millis() - lastRead > 500) {
+      uint8_t topHatData = readTopHatData();
+      // send top hat data over UDP as json
+      if (udp.beginPacket(udpAddress, udpPort)) {
+        StaticJsonDocument<200> doc;
+        doc["HP"] = topHatData;
+        char jsonString[200];
+        serializeJson(doc, jsonString);
+        udp.write((uint8_t*)jsonString, strlen(jsonString));
+        udp.endPacket();
+      }
+      lastRead = millis();
+    }
+    
+    // TODO: Send UDP Packet of current HP to auto.ino
   }
 }
+// Top hat data: 0
+// Top hat data: 0
+// Left wall follow mode
+// Top hat data: 0
+// Vive 1: 2654, 4308 | Vive 2: 2823, 2825 
+
+// Vive 1: 1739, 4338 | Vive 2: 1563, 4343
+
+
+//Left wall follow mode
+//Front: 172
+//Left: 342
+//Right: OOR
+//Turning left - steering angle: 50.00
+//Top hat data: 0
+//Vive 1: 2809, 2994 | Vive 2: 2769, 2820 
 
 /**
  * Sends steering commands to auto.ino via UDP

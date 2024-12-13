@@ -1,33 +1,41 @@
 #ifndef TOP_HAT_H
 #define TOP_HAT_H
 
-#include <Wire.h>
+#include <WireTH.h>
 
-#define TOP_HAT_I2C_ADDRESS 0x28  // Slave device 
+#define TOP_HAT_I2C_ADDRESS 0x28
+#define TOP_HAT_SDA 10
+#define TOP_HAT_SCL 0
+#define TOP_HAT_I2C_FREQUENCY 40000
 
-// Function declarations
 void initTopHat();
 uint8_t readTopHatData();
 
 void initTopHat() {
-  // Check if the device acknowledges on the I2C bus
-  Wire.beginTransmission(TOP_HAT_I2C_ADDRESS);
-  if (Wire.endTransmission() == 0) {
-    Serial.print("Top Hat device found at address 0x");
-    Serial.println(TOP_HAT_I2C_ADDRESS, HEX);
-  } else {
-    Serial.print("Top Hat device not found at address 0x");
-    Serial.println(TOP_HAT_I2C_ADDRESS, HEX);
-  }
+  // Separate I2C bus for the top hat
+  // Using 10 as SDA and 0 as SCL
+  WireTH.begin(TOP_HAT_SDA, TOP_HAT_SCL, TOP_HAT_I2C_FREQUENCY);
+}
+
+void sendTopHatData(uint8_t packet) {
+  WireTH.beginTransmission(TOP_HAT_I2C_ADDRESS);
+  WireTH.write(packet);
+  WireTH.endTransmission();
 }
 
 uint8_t readTopHatData() {
+  uint8_t dataReceived = WireTH.requestFrom(TOP_HAT_I2C_ADDRESS, 1);
   uint8_t data = 0;
-  Wire.requestFrom(TOP_HAT_I2C_ADDRESS, (uint8_t)1);
-  if (Wire.available()) {
-    data = Wire.read();
-  }
-  return data;
+  if (dataReceived > 0) {
+      Serial.print("\nReceived from slave: ");
+      while (WireTH.available()) {
+          data = WireTH.read();
+          Serial.print((int)data);
+      }
+  } else {
+        Serial.println("No data received from slave");
+    }
+  return (int)data;
 }
 
-#endif // TOP_HAT_H
+#endif

@@ -221,6 +221,8 @@ void setup() {
  * 4. RPM calculations and PID control
  */
 void loop() {
+  // TODO: Send UDP Packet to sensor.ino, so that it can send packet to top hat to take off health
+  // This will ONLY happen when we make a manual override 
   handleRGB();
   // Handle web server requests at regular intervals
   if (millis() - serverPrevTime > serverInterval) {
