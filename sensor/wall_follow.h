@@ -219,46 +219,43 @@ bool wallDetection(bool leftWall = true, bool follow = false, bool printDebug = 
 
   int effective_distance = getEffectiveDistance(dist);
 
-  if (effective_distance <= WALL_FOLLOW_THRESHOLD) {
-    if (follow) {
-      const char* direction = "FORWARD";
-      int speed = NORMAL_SPEED;  // Default speed
+  if (follow || (effective_distance <= WALL_FOLLOW_THRESHOLD)) {
+    const char* direction = "FORWARD";
+    int speed = NORMAL_SPEED;  // Default speed
 
-      // Compute steering angle based on effective distance using PID controller
-      float steering_angle = pidSteering.compute(WALL_FOLLOW_THRESHOLD, effective_distance);
+    // Compute steering angle based on effective distance using PID controller
+    float steering_angle = pidSteering.compute(WALL_FOLLOW_THRESHOLD, effective_distance);
 
-      if (steering_angle > 0) {
-        if (leftWall)   direction = "RIGHT";
-        else            direction = "LEFT";
-        
-        speed = WALL_CLOSE_SPEED;
-        if (printDebug) {
-            Serial.print("Turning ");             Serial.print(leftWall ? "right" : "left");
-            Serial.print(" - steering angle: ");  Serial.println(steering_angle);
-        }
-      } else if (steering_angle < 0) {
-        if (leftWall)   direction = "LEFT";
-        else            direction = "RIGHT";
-          
-        speed = WALL_CLOSE_SPEED;
-        steering_angle = -steering_angle;  // Make angle positive
-        if (printDebug) {
-            Serial.print("Turning left - steering angle: ");
-            Serial.println(steering_angle);
-        }
-      } else {
-          direction = "FORWARD";
-          speed = NORMAL_SPEED;
-          if (printDebug) {
-              Serial.println("Moving forward");
-          }
-          steering_angle = 0;
+    if (steering_angle > 0) {
+      if (leftWall)   direction = "RIGHT";
+      else            direction = "LEFT";
+      
+      speed = WALL_CLOSE_SPEED;
+      if (printDebug) {
+          Serial.print("Turning ");             Serial.print(leftWall ? "right" : "left");
+          Serial.print(" - steering angle: ");  Serial.println(steering_angle);
       }
-
-      // Send steering command
-      sendSteeringCommand((int)steering_angle, direction, speed);
+    } else if (steering_angle < 0) {
+      if (leftWall)   direction = "LEFT";
+      else            direction = "RIGHT";
+        
+      speed = WALL_CLOSE_SPEED;
+      steering_angle = -steering_angle;  // Make angle positive
+      if (printDebug) {
+          Serial.print("Turning left - steering angle: ");
+          Serial.println(steering_angle);
+      }
+    } else {
+        direction = "FORWARD";
+        speed = NORMAL_SPEED;
+        if (printDebug) {
+            Serial.println("Moving forward");
+        }
+        steering_angle = 0;
     }
 
+    // Send steering command
+    sendSteeringCommand((int)steering_angle, direction, speed);
     return true;
   }
 
