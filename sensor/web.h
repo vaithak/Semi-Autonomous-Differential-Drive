@@ -66,14 +66,25 @@ const char WEBPAGE[] PROGMEM = R"=====(
         <div class="stat-box">
             <div class="stat-label">Angle</div>
             <div id="angle" class="stat-value">0</div>
+        </div>
         <div class="stat-box">
             <div class="stat-label">Direction</div>
             <div id="direction" class="stat-value">-</div>
+        </div>
         <div class="stat-box">
             <div class="stat-label">Speed</div>
             <div id="speed" class="stat-value">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Vive</div>
+            <div id="vive" class="stat-value">-</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Top Hat</div>
+            <div id="topHat" class="stat-value">-</div>
+        
+        </div>
     </div>
-
     <script>
         // Remove the fetchSensorData function and its setInterval
 
@@ -87,6 +98,8 @@ const char WEBPAGE[] PROGMEM = R"=====(
             document.getElementById('angle').textContent = data.angle;
             document.getElementById('direction').textContent = data.direction;
             document.getElementById('speed').textContent = data.speed;
+            document.getElementById('vive').textContent = data.x + ', ' + data.y;
+            document.getElementById('topHat').textContent = data.HP;
         };
 
         ws.onerror = function(error) {

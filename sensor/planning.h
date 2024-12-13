@@ -1,4 +1,3 @@
-
 #ifndef PLANNING_H
 #define PLANNING_H
 
@@ -53,6 +52,8 @@ class Planner {
         uint32_t last_planning_print_time = 0;
 
         PIDController orientationPID;
+
+        RobotState currentState;
 
     public:
         // Constructor - initialize mode and orientation PID
@@ -124,6 +125,10 @@ class Planner {
             }
         }
 
+        RobotState getCurrentState() const {
+            return currentState;
+        }
+
         void planLogic() {
             bool printDebug = false;
             if (millis() - last_planning_print_time > PLANNING_PRINT_INTERVAL) {
@@ -132,6 +137,10 @@ class Planner {
             }
             // First update the Vive trackers
             ViveUpdate();
+            currentState.x = combined_vive_results.position_x;
+            currentState.y = combined_vive_results.position_y;
+            currentState.theta = combined_vive_results.orientation_theta;
+
             switch (mode) {
                 case LEFT_WALL_FOLLOW:
                     if (printDebug) {

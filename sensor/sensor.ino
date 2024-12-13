@@ -131,13 +131,14 @@ void loop() {
 
     // Send sensor data over WebSocket
     static unsigned long lastBroadcast = 0;
-    ungisned long lastRead = 0;
+    unsigned long lastRead = 0;
     if (millis() - lastBroadcast > 100) {   // Broadcast every 100ms
       int d_front, d_left, d_right;
       int steering_angle, speed;
       const char* direction;
       readToFSensors(d_front, d_left, d_right);
       readSteeringResult(steering_angle, direction, speed);
+      RobotState currentState = planner.getCurrentState();
       StaticJsonDocument<200> doc;
       doc["front"] = d_front;
       doc["left"] = d_left;
@@ -145,6 +146,9 @@ void loop() {
       doc["angle"] = steering_angle;
       doc["direction"] = direction;
       doc["speed"] = speed;
+      doc["x"] = currentState.x;
+      doc["y"] = currentState.y;
+      doc["theta"] = currentState.theta;
       String jsonString;
       serializeJson(doc, jsonString);
       webSocket.broadcastTXT(jsonString);
@@ -217,9 +221,14 @@ void sendSteeringCommand(int angle, const char* direction, int speed) {
 void handleData() {
   int d_front, d_left, d_right;
   int steering_angle, speed;
+  float x, y, theta;
   const char* direction;
   readToFSensors(d_front, d_left, d_right);
   readSteeringResult(steering_angle, direction, speed);
+  RobotState currentState = planner.getCurrentState();
+  x = currentState.x;
+  y = currentState.y;
+  theta = currentState.theta;
   // Prepare JSON data
   String jsonString = "{";
   jsonString += "\"front\":" + String(d_front) + ",";
@@ -227,7 +236,10 @@ void handleData() {
   jsonString += "\"right\":" + String(d_right);
   jsonString += "\"angle\":" + String(steering_angle) + ",";
   jsonString += "\"direction\":\"" + String(direction) + "\",";
-  jsonString += "\"speed\":" + String(speed);
+  jsonString += "\"speed\":" + String(speed) + ",";
+  jsonString += "\"x\":" + String(planner.getCurrentState().x) + ",";
+  jsonString += "\"y\":" + String(planner.getCurrentState().y) + ",";
+  jsonString += "\"theta\":" + String(planner.getCurrentState().theta);
   jsonString += "}";
 
   // Send JSON data
