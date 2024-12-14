@@ -1,7 +1,7 @@
 #ifndef TOP_HAT_H
 #define TOP_HAT_H
 
-#include <WireTH.h>
+#include <Wire.h>
 
 #define TOP_HAT_I2C_ADDRESS 0x28
 #define TOP_HAT_SDA 10
