@@ -45,7 +45,7 @@ void setup() {
   initSensorAuto();
 
   // Initialize I2C with custom SDA and SCL pins
-  Wire.begin(SDA_PIN, SCL_PIN);
+  // Wire.begin(SDA_PIN, SCL_PIN);
   // Initialize the planner
   planner.setup();
 

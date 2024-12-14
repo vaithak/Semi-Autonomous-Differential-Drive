@@ -39,11 +39,11 @@ float calculateSteeringAngle(float error);  // Add this line
 uint32_t last_tof_print_time = 0;
 
 // Define pins
-#define SDA_PIN 19    // Common SDA (Data line)
-#define SCL_PIN 4     // Common SCL (Clock line)
-#define XSHUT_FRONT 1 // Front sensor XSHUT pin
-#define XSHUT_LEFT 5  // Left sensor XSHUT pin
-#define XSHUT_RIGHT 18 // Right sensor XSHUT pin
+#define SDA_PIN 42    // Common SDA (Data line)
+#define SCL_PIN 6     // Common SCL (Clock line)
+#define XSHUT_FRONT 9 // Front sensor XSHUT pin
+#define XSHUT_LEFT 10  // Left sensor XSHUT pin
+#define XSHUT_RIGHT 13 // Right sensor XSHUT pin
 
 // Adafruit_VL53L1X loxFront = Adafruit_VL53L1X(); // Uncomment for VL53L1X
 Adafruit_VL53L0X loxFront = Adafruit_VL53L0X();

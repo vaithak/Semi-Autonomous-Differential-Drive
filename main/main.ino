@@ -102,7 +102,7 @@ uint32_t wifi_packets = 0;
 // WiFi configuration (from sensor code)
 const char* ssid = "GM Lab Public WIFI";
 const char* password = "";
-IPAddress local_IP(192, 168, 1, 105);
+IPAddress local_IP(192, 168, 1, 101);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
 WebServer server(80);
