@@ -8,8 +8,11 @@
 #define TOP_HAT_SCL 0
 #define TOP_HAT_I2C_FREQUENCY 40000
 
+TwoWire WireTH = TwoWire(1); 
+
 void initTopHat();
 uint8_t readTopHatData();
+
 
 void initTopHat() {
   // Separate I2C bus for the top hat
