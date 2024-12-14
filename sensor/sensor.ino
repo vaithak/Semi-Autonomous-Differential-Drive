@@ -17,13 +17,6 @@ IPAddress local_IP(192, 168, 1, 105);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0); 
 
-// IP and port of the auto.ino board
-const char* udpAddress = "192.168.1.104";  // IP address of auto.ino
-const unsigned int udpPort = 8888;         // UDP port to send data to
-
-// WiFiUDP udp;
-
-WebServer server(80);
 Planner planner;
 uint32_t wifi_packets = 0;
 uint8_t sendData[32];

@@ -32,15 +32,15 @@
 uint32_t last_auto_print_time = 0;
 
 // Wi-Fi network name and password
-const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
-const char* password = "";   // Wi-Fi password (empty for no password)
+// const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
+// const char* password = "";   // Wi-Fi password (empty for no password)
 
 // IP configuration for AP mode
-IPAddress local_IP(192, 168, 1, 104);  // ESP32's IP address
-IPAddress gateway(192, 168, 1, 104);   // Gateway IP (same as ESP32 in AP mode)
-IPAddress subnet(255, 255, 255, 0);    // Subnet mask
+// IPAddress local_IP(192, 168, 1, 104);  // ESP32's IP address
+// IPAddress gateway(192, 168, 1, 104);   // Gateway IP (same as ESP32 in AP mode)
+// IPAddress subnet(255, 255, 255, 0);    // Subnet mask
 
-WiFiUDP udp;
+// WiFiUDP udp;
 const unsigned int localUdpPort = 8888; // Port to listen on
 char incomingPacket[200];  // Buffer for incoming packets
 volatile unsigned long serverPrevTime = 0;
@@ -100,7 +100,7 @@ PIDController rightPID(KP, KI, KD, 4000, -LEDC_RESOLUTION, LEDC_RESOLUTION);
 int defaultPWM = 500;  // Default PWM value that can be changed via webpage
 
 // Add WebServer instance
-WebServer server(80);  // Add this with other global variables at the top
+// WebServer server(80);  // Add this with other global variables at the top
 
 // Add to global variables
 bool autonomousMode = true;  // Default to autonomous mode
@@ -179,30 +179,26 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderPinRightB), updateRightEncoder, CHANGE);
 
   // Set up Access Point
-  Serial.println("Setting up Access Point...");
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password, 4);
-  // Wi-Fi setup as STA mode
-  // WiFi.mode(WIFI_MODE_STA);
-  // WiFi.config(local_IP, gateway, subnet);
-  // WiFi.begin(ssid, password, 2);
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
-  udp.begin(localUdpPort);
-  Serial.print("HTTP server started at internal IP: ");
-  Serial.print(local_IP);
-  Serial.print("\n");
+  // Serial.println("Setting up Access Point...");
+  // WiFi.mode(WIFI_AP);
+  // WiFi.softAPConfig(local_IP, gateway, subnet);
+  // WiFi.softAP(ssid, password, 4);
+  // Serial.print("AP IP address: ");
+  // Serial.println(WiFi.softAPIP());
+  // udp.begin(localUdpPort);
+  // Serial.print("HTTP server started at internal IP: ");
+  // Serial.print(local_IP);
+  // Serial.print("\n");
 
   initTopHat();
   sensor_i2c_setup(); // Setup slave I2C for sensor.ino
 
   // Update setup to include new endpoints
-  server.on("/", handleRoot);
-  server.on("/setMode", handleSetMode);
-  server.on("/setMotor", handleSetMotor);
-  server.begin();
-  Serial.println("HTTP server started");
+  // server.on("/", handleRoot);
+  // server.on("/setMode", handleSetMode);
+  // server.on("/setMotor", handleSetMotor);
+  // server.begin();
+  // Serial.println("HTTP server started");
 
   // Initialize UDP properly
   // if(udp.begin(8888)) {
