@@ -4,8 +4,8 @@
 #include <Wire.h>
 
 #define I2C_SLAVE_ADDR 0x35
-#define SDA_PIN 25
-#define SCL_PIN 0
+#define SDA_PIN 16
+#define SCL_PIN 15
 
 #define I2C_PRINT_FREQUENCY 1000
 uint32_t last_i2c_print_time = 0;
