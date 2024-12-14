@@ -43,11 +43,11 @@ bool reachOrientation(float current_theta, float desired_theta, PIDController or
 
     // Send the steering command to align the orientation
     if (steering_angle > 0) {
-        sendSteeringCommand(steering_angle, "LEFT", 0);
+        sendSteeringCommand(steering_angle, 'L', 0);
     } else if (steering_angle < 0) {
-        sendSteeringCommand(-steering_angle, "RIGHT", 0);
+        sendSteeringCommand(-steering_angle, 'R', 0);
     } else {
-        sendSteeringCommand(0, "FORWARD", 0);
+        sendSteeringCommand(0, 'F', 0);
     }
 }
 
@@ -89,11 +89,11 @@ bool moveTowardsPoint(
     int speed = NORMAL_SPEED;
     int steering_angle = (int)(orientationPID.compute(0, diff_theta));
     if (steering_angle > 0)
-        sendSteeringCommand(steering_angle, "LEFT", speed);
+        sendSteeringCommand(steering_angle, 'L', speed);
     else if (steering_angle < 0)
-        sendSteeringCommand(-steering_angle, "RIGHT", speed);
+        sendSteeringCommand(-steering_angle, 'R', speed);
     else
-        sendSteeringCommand(0, "FORWARD", speed);
+        sendSteeringCommand(0, 'F', speed);
     return true; // moved because of moving forward
 }
 

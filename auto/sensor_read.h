@@ -38,7 +38,7 @@ void decodeDataFromI2C() {
     receivedSpeed = receivedData[0];
     receivedAngle = receivedData[1];
     receivedDirection = receivedData[2];
-    wifiPackets = receivedData[3];
+    wifiPackets += receivedData[3]; // cumulative wifi packets
     steerDataReceived = false;
   }
 }

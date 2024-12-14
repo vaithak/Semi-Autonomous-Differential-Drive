@@ -256,6 +256,7 @@ void loop() {
     // Send top hat number of wifi packets bt calling 
     // sendTopHatData function
     sendTopHatData(wifiPackets);
+    wifiPackets = 0;
 
     // Reset the top hat last read time
     topHatLastRead = millis();
