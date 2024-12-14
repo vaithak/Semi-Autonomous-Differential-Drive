@@ -26,6 +26,9 @@
 
 #define SAFE_DISTANCE 300 // Safe distance in millimeters
 
+#define PRINT_AUTO_FREQUENCY 1000
+uint32_t last_auto_print_time = 0;
+
 // Wi-Fi network name and password
 const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
 const char* password = "";   // Wi-Fi password (empty for no password)
@@ -180,7 +183,11 @@ void setup() {
   Serial.println("Setting up Access Point...");
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ssid, password, 4);
+  // Wi-Fi setup as STA mode
+  // WiFi.mode(WIFI_MODE_STA);
+  // WiFi.config(local_IP, gateway, subnet);
+  // WiFi.begin(ssid, password, 2);
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
   udp.begin(localUdpPort);
@@ -220,6 +227,7 @@ void setup() {
  * 3. Motor control based on mode (autonomous/manual)
  * 4. RPM calculations and PID control
  */
+bool printDebug = false;
 void loop() {
   // TODO: Send UDP Packet to sensor.ino, so that it can send packet to top hat to take off health
   // This will ONLY happen when we make a manual override 
@@ -230,6 +238,12 @@ void loop() {
     serverPrevTime = millis();
   }
 
+  printDebug = false;
+  if (millis() - last_auto_print_time > PRINT_AUTO_FREQUENCY) {
+    printDebug = true;
+    last_auto_print_time = millis();
+  }
+
   // Handle UDP packets
   int packetSize = udp.parsePacket();
   if (packetSize) {
@@ -237,7 +251,9 @@ void loop() {
     int len = udp.read(incomingPacket, 255);
     if (len > 0) {
       incomingPacket[len] = 0;  // Null terminate
-      Serial.printf("[Successful] Received packet: %s\n", incomingPacket);
+      if (printDebug) {
+        Serial.printf("[Successful] Received packet: %s\n", incomingPacket);
+      }
       
       // Parse JSON
       StaticJsonDocument<200> doc;
@@ -252,8 +268,10 @@ void loop() {
         newCommandReceived = true;
         
         // Print received values
-        Serial.printf("Received: angle=%d, direction=%s, speed=%d\n", 
-                      receivedAngle, receivedDirection, receivedSpeed);
+        if (printDebug) {
+          Serial.printf("Received: angle=%d, direction=%s, speed=%d\n", 
+                        receivedAngle, receivedDirection, receivedSpeed);
+        }
       }
     }
   }
@@ -289,7 +307,7 @@ void loop() {
   // Prepare and send motor signals
   int controlled_left_pwm, controlled_right_pwm;
   prepareControlledMotorSignals(desiredLeftPWM, desiredRightPWM, controlled_left_pwm, controlled_right_pwm);
-  if (DEBUG) {
+  if (printDebug) {
     Serial.printf("Control signals: Left: %d, Right: %d\n", controlSignalLeft, controlSignalRight);
     Serial.printf("Controlled Left PWM: %d, Controlled Right PWM: %d\n", controlled_left_pwm, controlled_right_pwm);
   }
@@ -406,8 +424,12 @@ void sendMotorSignals(
   digitalWrite(dirPinLeft, left_direction);
   digitalWrite(dirPinRight, right_direction);
 
+
+
   // Print pwms
-  Serial.printf("Actual Left PWM: %d, Actual Right PWM: %d\n", left_pwm, right_pwm);
+  if (printDebug) {
+    Serial.printf("Actual Left PWM: %d, Actual Right PWM: %d\n", left_pwm, right_pwm);
+  }
 
   // Set the PWM signals for the motors
   ledcWrite(pwmPinLeft, left_pwm);
@@ -427,7 +449,7 @@ void updateControlSignals() {
   int current_pwm_left = map(leftRPM, 0, MAX_RPM, 0, LEDC_RESOLUTION);
   int current_pwm_right = map(rightRPM, 0, MAX_RPM, 0, LEDC_RESOLUTION);
 
-  if (DEBUG) {
+  if (printDebug) {
     Serial.printf("Current RPM - Left: %d (direction: %d), Right: %d (direction: %d)\n", leftRPM, leftDirection, rightRPM, rightDirection);
     Serial.printf("Current PWM - Left: %d, Right: %d\n", current_pwm_left, current_pwm_right);
   }
@@ -496,7 +518,7 @@ void steer(int angle, const char* direction, int speed) {
 
   int left_pwm, left_direction, right_pwm, right_direction;
   prepareIdealMotorSignals(moveSpeed, angular_velocity, left_pwm, left_direction, right_pwm, right_direction);
-  if (DEBUG) {
+  if (printDebug) {
     Serial.printf("Steering: angle=%d, direction=%s, speed=%d\n", angle, direction, speed);
     Serial.printf("Desired Left: PWM=%d, Direction=%d\n", left_pwm, left_direction);
     Serial.printf("Desired Right: PWM=%d, Direction=%d\n", right_pwm, right_direction);

@@ -25,12 +25,12 @@ struct RobotState {
 
 // TODO: fill in the coordinates and orientation for the robot
 bool teamRed = true; // Change to false for blue team
-RobotState center_tower_blue = {0, 0, 0};
-RobotState nexus_red = {0, 0, 0};
+RobotState center_tower_red = {2652, 4306, -153};
+RobotState nexus_red = {1715, 4224, 21};
 RobotState nexus_blue = {0, 0, 0};
 RobotState ramp_red_side_entry_point = {0, 0, 0}; // till where vive can track - from here wall follow
 RobotState ramp_blue_side_entry_point = {0, 0, 0}; // till where vive can track - from here wall follow
-RobotState ramp_red_tower = {0, 0, 0}; // from here vive can track - from here wall follow
+RobotState ramp_red_tower = {2911, 0, 98.25}; // from here vive can track - from here wall follow
 RobotState ramp_blue_tower = {0, 0, 0}; // from here vive can track - from here wall follow
 
 // Class to handle the planning logic

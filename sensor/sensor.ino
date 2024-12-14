@@ -11,8 +11,8 @@
 #include "rgb.h"
 #include "top_hat.h"
 
-const char* ssid = "GM Lab Public WIFI";   
-const char* password = "";             
+const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
+const char* password = "";   // Wi-Fi password (empty for no password)    
 
 IPAddress local_IP(192, 168, 1, 105);
 IPAddress gateway(192, 168, 1, 1);
@@ -53,9 +53,8 @@ void setup() {
 
   // Wi-Fi setup as STA mode
   WiFi.mode(WIFI_MODE_STA);
-  WiFi.mode(WIFI_MODE_STA);
   WiFi.config(local_IP, gateway, subnet);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password, 4);
 
   // Initialize web server routes regardless of Wi-Fi connection status
   server.on("/", handleRoot);
