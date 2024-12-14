@@ -2,7 +2,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Robot Control</title>
+    <title>Test Toggle Visibility</title>
     <style>
         :root {
             --primary-color: #00e5ff;
@@ -326,7 +326,24 @@ const char WEBPAGE[] PROGMEM = R"=====(
             grid.appendChild(cross);
             currentCross = cross;
         }
+
+        // Get references to the sliders and display elements
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const turnSlider = document.getElementById('turnSlider');
+        const turnValue = document.getElementById('turnValue');
+
+        // Update the displayed speed value when the slider changes
+        speedSlider.addEventListener('input', function() {
+            speedValue.textContent = this.value;
+        });
+
+        // Update the displayed turn value when the slider changes
+        turnSlider.addEventListener('input', function() {
+            turnValue.textContent = this.value;
+        });
     </script>
 </body>
 </html>
+
 )=====";
