@@ -53,9 +53,9 @@ void setup() {
   Wire.begin();  // No address means this is the master
 
   // Wi-Fi setup as STA mode
-  WiFi.mode(WIFI_MODE_STA);
-  WiFi.config(local_IP, gateway, subnet);
-  WiFi.begin(ssid, password, 4);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  WiFi.softAP(ssid, password, 4);
 
   // Initialize web server routes regardless of Wi-Fi connection status
   server.on("/", handleRoot);
