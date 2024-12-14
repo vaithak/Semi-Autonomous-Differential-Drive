@@ -4,8 +4,8 @@
 #include <Wire.h>
 
 #define TOP_HAT_I2C_ADDRESS 0x28
-#define TOP_HAT_SDA 34
-#define TOP_HAT_SCL 7
+#define TOP_HAT_SDA 38
+#define TOP_HAT_SCL 37
 #define TOP_HAT_I2C_FREQUENCY 40000
 #define TOP_HAT_READ_INTERVAL 500
 
