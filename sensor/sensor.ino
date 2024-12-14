@@ -21,7 +21,7 @@ Planner planner;
 uint32_t wifi_packets = 0;
 uint8_t sendData[32];
 
-WebSocketsServer webSocket = WebSocketsServer(81);  // Initialize WebSocket server
+WebServer server(80);  // Initialize web server
 
 bool autonomousMode = true;  // Global variable to track the mode
 const int AUTO_I2C_ADDRESS = 0x08;  // I2C address of auto.ino
@@ -106,7 +106,7 @@ void loop() {
 
   // Always handle client requests
   server.handleClient();
-  webSocket.loop();
+  // webSocket.loop();
 
   // Handle Wi-Fi connection
   // if (WiFi.status() != WL_CONNECTED) {
