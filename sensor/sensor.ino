@@ -7,9 +7,7 @@
 #include <ArduinoJson.h>
 #include "planning.h"
 #include "web.h"
-#include "mode_select_web.h"
 #include "rgb.h"
-#include "top_hat.h"
 #include "send_auto.h"
 
 const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
@@ -32,9 +30,15 @@ uint8_t sendData[32];
 
 WebSocketsServer webSocket = WebSocketsServer(81);  // Initialize WebSocket server
 
+bool autonomousMode = true;  // Global variable to track the mode
+const int AUTO_I2C_ADDRESS = 0x08;  // I2C address of auto.ino
+
 // Function prototypes
-void sendSteeringCommand(int angle, char direction, int speed);
+void sendSteeringCommand(int angle, char direction, int speed, int servo);
 void handleRoot();
+void handleSetAuto();
+void handleControl();
+void handleSetMode();
 // void handleData();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
@@ -52,6 +56,9 @@ void setup() {
   // Initialize the planner
   planner.setup();
 
+  // Initialize I2C as master
+  Wire.begin();  // No address means this is the master
+
   // Wi-Fi setup as STA mode
   WiFi.mode(WIFI_MODE_STA);
   WiFi.config(local_IP, gateway, subnet);
@@ -59,6 +66,8 @@ void setup() {
 
   // Initialize web server routes regardless of Wi-Fi connection status
   server.on("/", handleRoot);
+  server.on("/setAuto", handleSetAuto);
+  server.on("/control", handleControl);
   // server.on("/data", handleData);
   server.on("/setMode", handleSetMode);
 
@@ -117,7 +126,12 @@ void loop() {
   //     lastReconnectAttempt = currentTime;
   //   }
   // } else {
-  planner.planLogic();  // Ensure this is called regularly
+  if (autonomousMode) {
+    planner.planLogic();  // Autonomous mode
+  } else {
+    // Manual mode, no autonomous planning
+    // Handle manual control commands if necessary
+  }
 
   // delay(80);
   handleRGB();
@@ -196,7 +210,7 @@ void loop() {
  * @param direction: "LEFT", "RIGHT", or "FORWARD"
  * @param speed: Desired speed
  */
-void sendSteeringCommand(int angle, char direction, int speed) {
+void sendSteeringCommand(int angle, char direction, int speed, int servo) {
   // StaticJsonDocument<200> doc;
   // doc["angle"] = angle;
   // doc["direction"] = direction;
@@ -221,10 +235,12 @@ void sendSteeringCommand(int angle, char direction, int speed) {
   // Next 1 byte: Angle (0-50)
   // Next 1 byte: Direction (F - Forward, L - Left, R - Right)
   // Next 1 byte: Number of used wifi packets
+  // Next 1 byte: Servo (0 - off, 1 - on)
   sendData[0] = (uint8_t)speed;
   sendData[1] = (uint8_t)angle;
   sendData[2] = direction;
   sendData[3] = wifi_packets;
+  sendData[4] = servo;
   sendAutoData(sendData, 4);
 }
 
@@ -264,6 +280,34 @@ void handleRoot() {
   server.send_P(200, "text/html", WEBPAGE);
 }
 
+void handleSetAuto() {
+  if (server.hasArg("mode")) {
+    String mode = server.arg("mode");
+    autonomousMode = (mode == "autonomous");
+    server.send(200, "text/plain", "Mode updated");
+    Serial.printf("Mode updated to: %s\n", autonomousMode ? "autonomous" : "manual");
+  } else {
+    server.send(400, "text/plain", "Bad Request");
+  }
+}
+
+void handleControl() {
+  if (!autonomousMode) {
+    if (server.hasArg("angle") && server.hasArg("direction") && server.hasArg("speed") && server.hasArg("servo")) {
+    int angle = server.arg("angle").toInt();
+    String direction = server.arg("direction");
+    int speed = server.arg("speed").toInt();
+    int servo = server.arg("servo").toInt();
+    sendSteeringCommand(angle, direction[0], speed, servo);
+    server.send(200, "text/plain", "Steering command sent");
+  } else {
+    server.send(400, "text/plain", "Bad Request");
+}
+  } else {
+    server.send(400, "text/plain", "Manual control not allowed in autonomous mode");
+  }
+}
+
 // Function to receive mode from web interface
 void handleSetMode() {
   Serial.println("Request for setting mode received");
@@ -286,9 +330,9 @@ void handleSetMode() {
     } else {
       planner.setWaypointsAndMode(0, 0, mode);
     }
+    server.send(200, "text/plain", "Mode updated");
   } else {
-    // Send the HTML page
-    server.send_P(200, "text/html", MODE_SELECT_PAGE);
+    server.send(400, "text/plain", "Bad Request");
   }
 }
 

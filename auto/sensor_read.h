@@ -21,6 +21,7 @@ volatile uint8_t receivedSpeed = 0;
 volatile uint8_t receivedAngle = 0;
 volatile char receivedDirection = 'F'; // F - Forward, L - Left, R - Right
 volatile uint8_t wifiPackets = 0;
+volatile uint8_t receivedServo = 0; // 0 - off, 1 - on
 
 // Buffer for sending data
 uint8_t sendData[32];
@@ -33,12 +34,14 @@ TwoWire WireSensor = TwoWire(0);
 // Next 1 byte: Angle (0-50)
 // Next 1 byte: Direction (F - Forward, L - Left, R - Right)
 // Next 1 byte: Number of used wifi packets
+// Next 1 byte: Servo (0 - off, 1 - on)
 void decodeDataFromI2C() {
   if (steerDataReceived) {
     receivedSpeed = receivedData[0];
     receivedAngle = receivedData[1];
     receivedDirection = receivedData[2];
     wifiPackets += receivedData[3]; // cumulative wifi packets
+    receivedServo = receivedData[4];
     steerDataReceived = false;
   }
 }

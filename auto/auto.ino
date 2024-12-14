@@ -48,10 +48,10 @@ const unsigned long serverInterval = 50;
 
 // Define the pins for the motor control
 // Inverter 4 -> IN 2, Inverter 2 -> IN 4
-const int pwmPinLeft = 4;  // PWM output pin (connected to EN pin on H-Bridge)
-const int pwmPinRight = 5;  // PWM output pin (connected to EN pin on H-Bridge)
-const int dirPinLeft = 18;  // Direction control pin 1 (for left motor) -> Inverter 1, IN 3
-const int dirPinRight = 19;  // Direction control pin 2 (for right motor) -> Inverter 3, IN 1
+const int pwmPinLeft = 2;  // PWM output pin (connected to EN pin on H-Bridge)
+const int pwmPinRight = 1;  // PWM output pin (connected to EN pin on H-Bridge)
+const int dirPinLeft = 4;  // Direction control pin 1 (for left motor) -> Inverter 1, IN 3
+const int dirPinRight = 5;  // Direction control pin 2 (for right motor) -> Inverter 3, IN 1
 
 // Gloal variable to store current desired PWM for left and right motors
 int desiredLeftPWM = 0;
@@ -322,6 +322,8 @@ void loop() {
   //   newCommandReceived = false;
   // }
   steer((int)receivedAngle, receivedDirection, (int)receivedSpeed);
+  setServo(receivedServo);
+
 
   // Prepare and send motor signals
   int controlled_left_pwm, controlled_right_pwm;
@@ -601,6 +603,17 @@ void handleSetServo() {
     }
   }
   server.send(200, "text/plain", "Servo parameters updated");
+}
+
+void setServo(int servoSignal) {
+  if (servoSignal == 0) {
+    servoOff = true;
+    swingServo = false;
+  } else {
+    servoOff = false;
+    swingServo = true;
+  }
+  handleServo(servoOff, swingServo, swingSpeed);
 }
 
 // Function to map angle to duty cycle

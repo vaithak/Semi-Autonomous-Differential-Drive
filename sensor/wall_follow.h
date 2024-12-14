@@ -32,7 +32,7 @@ const int WALL_CLOSE_SPEED = 50;  // Speed when close to wall
 void initToFSensors();
 void readToFSensors(int &d_front, int &d_left, int &d_right);
 void wallFollowLogic();
-void sendSteeringCommand(int angle, char direction, int speed); // Changed from steer to sendSteeringCommand
+void sendSteeringCommand(int angle, char direction, int speed, int servo); // Changed from steer to sendSteeringCommand
 float calculateSteeringAngle(float error);  // Add this line
 
 #define PRINT_TOF_INTERVAL 1000
@@ -195,7 +195,7 @@ bool frontObstacleAvoidance(bool debugPrint = false) {
       speed = CORNER_SPEED;
 
       // Send steering command
-      sendSteeringCommand((int)steering_angle, direction, speed);
+      sendSteeringCommand((int)steering_angle, direction, speed, 0);
   }
   
   return detectedObstacle;
@@ -247,7 +247,7 @@ bool wallDetection(bool leftWall = true, bool follow = false, bool printDebug = 
     }
 
     // Send steering command
-    sendSteeringCommand((int)steering_angle, direction, speed);
+    sendSteeringCommand((int)steering_angle, direction, speed, 1);
     return true;
   }
 
@@ -274,7 +274,7 @@ void wallFollowLogic(
     else if (wallDetection(leftWall, true, printDebug))   return;
     else
       // No obstacles detected
-      sendSteeringCommand((int)steering_angle, direction, speed);
+      sendSteeringCommand((int)steering_angle, direction, speed, 1);
 }
 
 #endif

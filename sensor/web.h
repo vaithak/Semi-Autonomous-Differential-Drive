@@ -2,7 +2,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test Toggle Visibility</title>
+    <title>Robot Control</title>
     <style>
         :root {
             --primary-color: #00e5ff;
@@ -138,6 +138,55 @@ const char WEBPAGE[] PROGMEM = R"=====(
             border-radius: 5px;
             width: 100%;
         }
+
+        #grid {
+            display: none;
+            margin-top: 20px;
+            width: 400px;
+            height: 400px;
+            border: 2px solid var(--primary-color);
+            position: relative;
+            background: var(--panel-bg);
+        }
+
+        .cross {
+            position: absolute;
+        }
+
+        .cross .horizontal, .cross .vertical {
+            position: absolute;
+            background: var(--primary-color);
+        }
+
+        .cross .horizontal {
+            width: 20px;
+            height: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .cross .vertical {
+            width: 2px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #coordinates {
+            margin-top: 10px;
+            color: var(--text-color);
+        }
+
+        .auto-control {
+            padding: 20px;
+            background: var(--panel-bg);
+            border-radius: 15px;
+            margin-top: 20px;
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+        }
     </style>
 </head>
 <body>
@@ -146,6 +195,27 @@ const char WEBPAGE[] PROGMEM = R"=====(
         <div class="toggle-switch">
             <input type="checkbox" id="modeToggle">
             <label class="toggle-slider" for="modeToggle"></label>
+        </div>
+
+        <div class="auto-control">
+            <h3>Autonomous Control</h3>
+            <div class="slider-container">
+                <label>Select Mode:</label>
+                <select id="modeSelector">
+                    <option value="" disabled selected>Select a Mode</option>
+                    <option value="leftWallFollow">Left wall follow</option>
+                    <option value="rightWallFollow">Right wall follow</option>
+                    <option value="attackRampBlueTower">Attack Ramp Blue Tower</option>
+                    <option value="attackRampRedTower">Attack Ramp Red Tower</option>
+                    <option value="attackGroundNexusRight">Attack Nexus on the right end</option>
+                    <option value="attackGroundNexusLeft">Attack Nexus on the left end</option>
+                    <option value="attackBlueGroundNexusCenter">Attack Blue Nexus in the center</option>
+                    <option value="attackRedGroundNexusCenter">Attack Red Nexus in the center</option>
+                    <option value="gridMode">Attack TA Bot (select point to move to)</option>
+                </select>
+            </div>
+            <div id="grid"></div>
+            <div id="coordinates"></div>
         </div>
 
         <div class="motor-control hidden">
@@ -181,18 +251,82 @@ const char WEBPAGE[] PROGMEM = R"=====(
     <script>
         const modeToggle = document.getElementById('modeToggle');
         const motorControl = document.querySelector('.motor-control');
+        const autoControl = document.querySelector('.auto-control');
+        const modeSelector = document.getElementById('modeSelector');
+        const grid = document.getElementById('grid');
+        const coordinatesDisplay = document.getElementById('coordinates');
+        let currentCross = null;
 
         modeToggle.addEventListener('change', function() {
             if (this.checked) {
-                // Show manual controls
                 motorControl.classList.remove('hidden');
+                autoControl.classList.add('hidden');
             } else {
-                // Hide manual controls
                 motorControl.classList.add('hidden');
+                autoControl.classList.remove('hidden');
             }
         });
+
+        modeSelector.addEventListener('change', (event) => {
+            const selectedMode = event.target.value;
+
+            if (selectedMode === "gridMode") {
+                grid.style.display = 'block';
+                coordinatesDisplay.textContent = "Click on the grid to select a point.";
+            } else {
+                grid.style.display = 'none';
+                coordinatesDisplay.textContent = "";
+                sendModeRequest(selectedMode);
+            }
+        });
+
+        grid.addEventListener('click', (event) => {
+            const rect = grid.getBoundingClientRect();
+            const x = Math.floor((event.clientX - rect.left) / (rect.width / 10));
+            const y = Math.floor((event.clientY - rect.top) / (rect.height / 10));
+
+            if (currentCross) {
+                currentCross.remove();
+            }
+
+            drawCross(x, y);
+            coordinatesDisplay.textContent = `Selected Coordinates: x=${x}, y=${y}`;
+            sendModeRequest(modeSelector.value, x, y);
+        });
+
+        function sendModeRequest(mode, x = null, y = null) {
+            const url = x !== null && y !== null 
+                ? `/setMode?mode=${mode}&x=${x}&y=${y}`
+                : `/setMode?mode=${mode}`;
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.send();
+        }
+
+        function drawCross(x, y) {
+            const cross = document.createElement('div');
+            cross.classList.add('cross');
+
+            const gridSize = grid.offsetWidth / 10;
+            cross.style.left = `${x * gridSize}px`;
+            cross.style.top = `${y * gridSize}px`;
+            cross.style.width = `${gridSize}px`;
+            cross.style.height = `${gridSize}px`;
+
+            const horizontal = document.createElement('div');
+            horizontal.classList.add('horizontal');
+
+            const vertical = document.createElement('div');
+            vertical.classList.add('vertical');
+
+            cross.appendChild(horizontal);
+            cross.appendChild(vertical);
+
+            grid.appendChild(cross);
+            currentCross = cross;
+        }
     </script>
 </body>
 </html>
-
 )=====";
