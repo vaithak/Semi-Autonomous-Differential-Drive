@@ -52,10 +52,9 @@ void setup() {
   // Initialize I2C as master
   Wire.begin();  // No address means this is the master
 
-  // Wi-Fi setup as STA mode
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password, 4);
+  WiFi.softAP(ssid, password, 5);
 
   // Initialize web server routes regardless of Wi-Fi connection status
   server.on("/", handleRoot);
@@ -78,21 +77,9 @@ void setup() {
   // Serial.print("UDP client started on port ");
   // Serial.println(udpPort);
 
-  Serial.print("Waiting for WiFi connection");
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("connected to %s on ", ssid);
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Failed to connect to WiFi!");
-  }
+  // Add a print statement to indicate AP mode is active
+  Serial.printf("Access Point \"%s\" started. IP address: ", ssid);
+  Serial.println(WiFi.softAPIP());
 }
 
 /**
@@ -108,17 +95,6 @@ void loop() {
   server.handleClient();
   // webSocket.loop();
 
-  // Handle Wi-Fi connection
-  // if (WiFi.status() != WL_CONNECTED) {
-  //   // Try to reconnect to Wi-Fi if connection is lost
-  //   static unsigned long lastReconnectAttempt = 0;
-  //   unsigned long currentTime = millis();
-  //   if (currentTime - lastReconnectAttempt >= 5000) {  // Try every 5 seconds
-  //     Serial.println("Reconnecting to WiFi...");
-  //     WiFi.reconnect();
-  //     lastReconnectAttempt = currentTime;
-  //   }
-  // } else {
   if (autonomousMode) {
     planner.planLogic();  // Autonomous mode
   } else {
