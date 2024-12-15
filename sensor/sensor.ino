@@ -95,6 +95,8 @@ void setup() {
   server.on("/setMotor", handleSetMotor);
   server.on("/setServo", handleSetServo);
 
+  // Add HP Packet handling route
+
   // Start the web server
   server.begin();
   Serial.println("Web server started");
