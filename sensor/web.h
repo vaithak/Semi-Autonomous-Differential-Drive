@@ -422,7 +422,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
             const queryString = `${window.location.origin}/setMotor?` +
                 `speed=${Math.abs(speed)}` +
                 `&forwardBackward=${speed >= 0 ? "Forward" : "Backward"}` +
-                `&turnRate=${turnRate}`;
+                `&turnRate=${turnRate*-1}`;
 
             fetch(queryString)
                 .then(response => response.text())
