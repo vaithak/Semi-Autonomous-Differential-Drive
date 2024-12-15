@@ -24,7 +24,14 @@ const char WEBPAGE[] PROGMEM = R"=====(
             border-radius: 15px;
             padding: 20px;
             margin: 20px auto;
-            max-width: 600px;
+            max-width: 90%;
+            width: 100%;
+        }
+
+        @media (min-width: 992px) {
+            .control-panel {
+                max-width: 800px;
+            }
         }
 
         h2, h3 {
@@ -187,6 +194,92 @@ const char WEBPAGE[] PROGMEM = R"=====(
             border: 1px solid var(--primary-color);
             box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
         }
+
+        .emergency-stop {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #ff3636, #cc0000);
+            border: none;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3),
+                        inset 0 0 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .emergency-stop:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.5),
+                        inset 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .emergency-stop:active {
+            transform: scale(0.95);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3),
+                        inset 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+
+            .control-panel {
+                padding: 10px;
+                margin: 10px auto;
+                max-width: 100%;
+            }
+
+            h2, h3 {
+                font-size: 1.2em;
+            }
+
+            .toggle-switch {
+                width: 100%;
+                height: 50px;
+            }
+
+            .toggle-slider:before {
+                width: 50%;
+                height: 42px;
+                line-height: 42px;
+                left: 4px;
+                bottom: 4px;
+                font-size: 1em;
+            }
+
+            input:checked + .toggle-slider:before {
+                transform: translateX(calc(100% - 8px));
+            }
+
+            .slider-container {
+                padding: 10px;
+            }
+
+            input[type="range"] {
+                height: 10px;
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                width: 20px;
+                height: 20px;
+            }
+
+            .emergency-stop {
+                width: 80px;
+                height: 80px;
+                font-size: 1em;
+            }
+
+            select {
+                font-size: 0.9em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -238,6 +331,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
                     <option value="Off">Off</option>
                 </select>
             </div>
+            <button class="emergency-stop" id="emergencyStop">BIG RED<br>BUTTON</button>
         </div>
     </div>
 
@@ -252,16 +346,12 @@ const char WEBPAGE[] PROGMEM = R"=====(
 
         modeToggle.addEventListener('change', function() {
             if (this.checked) {
-                // User selected Manual mode
                 motorControl.classList.remove('hidden');
                 autoControl.classList.add('hidden');
-                // Send request to set mode to manual on the server
                 sendModeRequest("manual");
             } else {
-                // User selected Autonomous mode
                 motorControl.classList.add('hidden');
                 autoControl.classList.remove('hidden');
-                // Send request to set mode to autonomous on the server
                 sendModeRequest("autonomous");
             }
         });
@@ -330,6 +420,7 @@ const char WEBPAGE[] PROGMEM = R"=====(
         function updateServo() {
             const servo = servoSelect.value;
             fetch(`/setServo?servo=${servo}`);
+            // Add speed control maybe later
         }
 
         function drawCross(x, y) {
@@ -355,22 +446,74 @@ const char WEBPAGE[] PROGMEM = R"=====(
             currentCross = cross;
         }
 
-        // Get references to the sliders and display elements
         const speedSlider = document.getElementById('speedSlider');
         const speedValue = document.getElementById('speedValue');
         const turnSlider = document.getElementById('turnSlider');
         const turnValue = document.getElementById('turnValue');
 
-        // Update the displayed speed value when the slider changes
         speedSlider.addEventListener('input', function() {
             speedValue.textContent = this.value;
             updateMotor(this.value, turnSlider.value);
         });
 
-        // Update the displayed turn value when the slider changes
         turnSlider.addEventListener('input', function() {
             turnValue.textContent = this.value;
             updateMotor(speedSlider.value, this.value);
+        });
+
+        const emergencyStop = document.getElementById('emergencyStop'); // BIG RED BUTTON
+        const servoSelect = document.getElementById('servo');
+
+
+        emergencyStop.addEventListener('click', function() {
+            speedSlider.value = 0;
+            speedValue.textContent = "0";
+            
+            turnSlider.value = 0;
+            turnValue.textContent = "0";
+            
+            servoSelect.value = "Off";
+            
+            updateMotor(0, 0);
+            updateServo();
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (motorControl.classList.contains('hidden')) {
+                return;
+            }
+
+            switch(event.key.toLowerCase()) {
+                case 'w':
+                    speedSlider.value = Math.min(parseInt(speedSlider.value) + 5, 100);
+                    speedValue.textContent = speedSlider.value;
+                    updateMotor(speedSlider.value, turnSlider.value);
+                    break;
+                case 's':
+                    speedSlider.value = Math.max(parseInt(speedSlider.value) - 5, -100);
+                    speedValue.textContent = speedSlider.value;
+                    updateMotor(speedSlider.value, turnSlider.value);
+                    break;
+                case 'a':
+                    turnSlider.value = Math.max(parseInt(turnSlider.value) - 5, -50);
+                    turnValue.textContent = turnSlider.value;
+                    updateMotor(speedSlider.value, turnSlider.value);
+                    break;
+                case 'd':
+                    turnSlider.value = Math.min(parseInt(turnSlider.value) + 5, 50);
+                    turnValue.textContent = turnSlider.value;
+                    updateMotor(speedSlider.value, turnSlider.value);
+                    break;
+                case ' ':
+                    emergencyStop.click();
+                    break;
+                case 'x':
+                    servoSelect.value = (servoSelect.value === 'On') ? 'Off' : 'On';
+                    updateServo();
+                    break;
+                default:
+                    break;
+            }
         });
     </script>
 </body>
