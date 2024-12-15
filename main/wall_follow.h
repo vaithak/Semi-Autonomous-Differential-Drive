@@ -40,7 +40,7 @@ uint32_t last_tof_print_time = 0;
 
 // Define pins
 #define SDA_PIN 42    // Common SDA (Data line)
-#define SCL_PIN 6     // Common SCL (Clock line)
+#define SCL_PIN 41     // Common SCL (Clock line)
 #define XSHUT_FRONT 9 // Front sensor XSHUT pin
 #define XSHUT_LEFT 10  // Left sensor XSHUT pin
 #define XSHUT_RIGHT 13 // Right sensor XSHUT pin
@@ -63,6 +63,7 @@ bool rightSensorOK = false;
 
 // Simplify the initToFSensors() function to match working implementation
 void initToFSensors() {
+  Wire.begin(SDA_PIN, SCL_PIN);
   // Configure I2C
   delay(10);
   pinMode(XSHUT_FRONT, OUTPUT);
