@@ -280,6 +280,19 @@ const char WEBPAGE[] PROGMEM = R"=====(
                 font-size: 0.9em;
             }
         }
+
+        .packet-counter {
+            background: var(--panel-bg);
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+            color: var(--text-color);
+            padding: 10px;
+            margin: 20px auto;
+            width: 200px;
+            text-align: center;
+            font-size: 1.2em;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
@@ -333,6 +346,10 @@ const char WEBPAGE[] PROGMEM = R"=====(
             </div>
             <button class="emergency-stop" id="emergencyStop">BIG RED<br>BUTTON</button>
         </div>
+    </div>
+
+    <div class="packet-counter">
+        Packets Sent: <span id="packetCount">0</span>
     </div>
 
     <script>
@@ -478,6 +495,22 @@ const char WEBPAGE[] PROGMEM = R"=====(
             updateServo();
         });
 
+        let packetCount = 0;
+        // We got total packet count here, you can fetch it in sensor.ino and just compare the diff
+        // If it's higher than the local packet count, then you can update it using top_hat.h sendData func
+        function sendPacket() {
+            fetch('/hpPackets')
+                .then(response => {
+                    if (response.ok) {
+                        packetCount++;
+                        document.getElementById('packetCount').textContent = packetCount;
+                    } else {
+                        console.error('Failed to send packet');
+                    }
+                })
+                .catch(error => console.error('Error sending packet:', error));
+        }
+
         document.addEventListener('keydown', function(event) {
             if (motorControl.classList.contains('hidden')) {
                 return;
@@ -510,6 +543,9 @@ const char WEBPAGE[] PROGMEM = R"=====(
                 case 'x':
                     servoSelect.value = (servoSelect.value === 'On') ? 'Off' : 'On';
                     updateServo();
+                    break;
+                case 'f':
+                    sendPacket();
                     break;
                 default:
                     break;
