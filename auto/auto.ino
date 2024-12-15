@@ -1,7 +1,6 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <ArduinoJson.h>
-#include <web.h>
+// #include <web.h>
 #include <pid.h>
 // #include <WebServer.h>  
 #include "rgb.h"
