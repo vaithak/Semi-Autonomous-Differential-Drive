@@ -383,6 +383,18 @@ void prepareIdealMotorSignals(
   float omega_l = (linear_velocity - angular_velocity * WHEEL_BASE / 2) / WHEEL_RADIUS;
   float omega_r = (linear_velocity + angular_velocity * WHEEL_BASE / 2) / WHEEL_RADIUS;
 
+  // Clip the angular velocity to the maximum limits
+  if (omega_l > MAX_WHEEL_VELOCTY) {
+    omega_l = MAX_WHEEL_VELOCTY;
+  } else if (omega_l < -MAX_WHEEL_VELOCTY) {
+    omega_l = -MAX_WHEEL_VELOCTY;
+  }
+  if (omega_r > MAX_WHEEL_VELOCTY) {
+    omega_r = MAX_WHEEL_VELOCTY;
+  } else if (omega_r < -MAX_WHEEL_VELOCTY) {
+    omega_r = -MAX_WHEEL_VELOCTY;
+  }
+
   // Convert the angular velocity to PWM signals
   convertAngularVelocityToPWM(omega_l, left_pwm, left_direction);
   convertAngularVelocityToPWM(omega_r, right_pwm, right_direction);
@@ -532,7 +544,7 @@ void readEncoderValue(
  * @param speed: Desired speed (0-100)
  */
 void steer(int angle, const char* direction, int speed) {
-  float maxSteeringAngle = 50;  // Use MAX_STEERING_ANGLE from wall_follow.h
+  float maxSteeringAngle = 50.0;  // Use MAX_STEERING_ANGLE from wall_follow.h
   float moveSpeed = (speed / 100.0) * MAX_LINEAR_VELOCTY;
   float angular_velocity = (angle / maxSteeringAngle) * MAX_ANGULAR_VELOCITY;
   Serial.print("moveSpeed: ");
