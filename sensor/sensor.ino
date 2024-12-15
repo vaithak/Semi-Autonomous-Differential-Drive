@@ -25,11 +25,27 @@ WiFiUDP udp;
 
 WebServer server(80);
 Planner planner;
+bool manual_mode = false; // Default to autonomous mode
 
 // Function prototypes
 void sendSteeringCommand(int angle, const char* direction, int speed);
 void handleRoot();
-void handleData();
+// void handleData();
+void handleManualSwitch();
+void handleSetMode();
+void handleSetMotor();
+void handleSetServo();
+
+// Store number of wifi packets received
+int wifiPacketCount = 0;
+
+// Store servo state
+bool servoOff = false;
+
+// Store requested motor speed and direction
+int requestedSpeed = 0;
+int requestedTurnRate = 0;
+String forward_backward = "Forward";
 
 void setup() {
   setupRGB();
@@ -50,21 +66,7 @@ void setup() {
   // Wi-Fi setup as STA mode
   WiFi.mode(WIFI_MODE_STA);
   WiFi.config(local_IP, gateway, subnet);
-  WiFi.begin(ssid, password, 4);
-
-  // Initialize web server routes regardless of Wi-Fi connection status
-  server.on("/", handleRoot);
-  server.on("/data", handleData);
-  server.on("/setMode", handleSetMode);
-
-  // Start the web server
-  server.begin();
-  Serial.println("Web server started");
-
-  // Start UDP
-  udp.begin(udpPort);
-  Serial.print("UDP client started on port ");
-  Serial.println(udpPort);
+  WiFi.begin(ssid, password, 11);
 
   Serial.print("Waiting for WiFi connection");
   int attempts = 0;
@@ -81,6 +83,23 @@ void setup() {
   } else {
     Serial.println("Failed to connect to WiFi!");
   }
+
+  // Initialize web server routes regardless of Wi-Fi connection status
+  server.on("/", handleRoot);
+  // server.on("/data", handleData);
+  server.on("/manual", handleManualSwitch);
+  server.on("/setMode", handleSetMode);
+  server.on("/setMotor", handleSetMotor);
+  server.on("/setServo", handleSetServo);
+
+  // Start the web server
+  server.begin();
+  Serial.println("Web server started");
+
+  // Start UDP
+  udp.begin(udpPort);
+  Serial.print("UDP client started on port ");
+  Serial.println(udpPort);
 }
 
 /**
@@ -105,9 +124,16 @@ void loop() {
       lastReconnectAttempt = currentTime;
     }
   } else {
-    planner.planLogic();  // Ensure this is called regularly
+    if (manual_mode) {
+      if (requestedTurnRate < 0) {
+        sendSteeringCommand((int)-requestedTurnRate, "RIGHT", requestedSpeed * (forward_backward == "Forward" ? 1 : -1));
+      } else {
+        sendSteeringCommand((int)requestedTurnRate, "LEFT", requestedSpeed * (forward_backward == "Forward" ? 1 : -1));
+      }
+    } else {
+      planner.planLogic();  // Ensure this is called regularly
+    }
 
-    delay(80);
     handleRGB();
     // Print sensor values every 1 second
     // if (millis() - lastPrint > 1000) {
@@ -165,11 +191,11 @@ void sendSteeringCommand(int angle, const char* direction, int speed) {
   
   // send UDP packet as bytes
   uint8_t sendData[5];
-  sendData[0] = (uint8_t)speed;
+  sendData[0] = (uint8_t)(speed + 100); // mapping -100 to 100 -> 0 to 200
   sendData[1] = (uint8_t)angle;
   sendData[2] = direction[0];
-  sendData[3] = 0;  // Number of wifi packets
-  sendData[4] = 0;  // Servo off
+  sendData[3] = 100; // TODO: send health points
+  sendData[4] = servoOff ? 0 : 1;
 
   // Send UDP packet with proper error handling
   if(udp.beginPacket(udpAddress, udpPort)) {
@@ -185,33 +211,33 @@ void sendSteeringCommand(int angle, const char* direction, int speed) {
 }
 
 // Function to send sensor data to clients
-void handleData() {
-  int d_front, d_left, d_right;
-  int steering_angle, speed;
-  float x, y, theta;
-  const char* direction;
-  readToFSensors(d_front, d_left, d_right);
-  readSteeringResult(steering_angle, direction, speed);
-  RobotState currentState = planner.getCurrentState();
-  x = currentState.x;
-  y = currentState.y;
-  theta = currentState.theta;
-  // Prepare JSON data
-  String jsonString = "{";
-  jsonString += "\"front\":" + String(d_front) + ",";
-  jsonString += "\"left\":" + String(d_left) + ",";
-  jsonString += "\"right\":" + String(d_right);
-  jsonString += "\"angle\":" + String(steering_angle) + ",";
-  jsonString += "\"direction\":\"" + String(direction) + "\",";
-  jsonString += "\"speed\":" + String(speed) + ",";
-  jsonString += "\"x\":" + String(planner.getCurrentState().x) + ",";
-  jsonString += "\"y\":" + String(planner.getCurrentState().y) + ",";
-  jsonString += "\"theta\":" + String(planner.getCurrentState().theta);
-  jsonString += "}";
+// void handleData() {
+//   int d_front, d_left, d_right;
+//   int steering_angle, speed;
+//   float x, y, theta;
+//   const char* direction;
+//   readToFSensors(d_front, d_left, d_right);
+//   readSteeringResult(steering_angle, direction, speed);
+//   RobotState currentState = planner.getCurrentState();
+//   x = currentState.x;
+//   y = currentState.y;
+//   theta = currentState.theta;
+//   // Prepare JSON data
+//   String jsonString = "{";
+//   jsonString += "\"front\":" + String(d_front) + ",";
+//   jsonString += "\"left\":" + String(d_left) + ",";
+//   jsonString += "\"right\":" + String(d_right);
+//   jsonString += "\"angle\":" + String(steering_angle) + ",";
+//   jsonString += "\"direction\":\"" + String(direction) + "\",";
+//   jsonString += "\"speed\":" + String(speed) + ",";
+//   jsonString += "\"x\":" + String(planner.getCurrentState().x) + ",";
+//   jsonString += "\"y\":" + String(planner.getCurrentState().y) + ",";
+//   jsonString += "\"theta\":" + String(planner.getCurrentState().theta);
+//   jsonString += "}";
 
-  // Send JSON data
-  server.send(200, "application/json", jsonString);
-}
+//   // Send JSON data
+//   server.send(200, "application/json", jsonString);
+// }
 
 // Implement handleRoot function similar to auto.ino
 void handleRoot() {
@@ -220,9 +246,47 @@ void handleRoot() {
   server.send_P(200, "text/html", WEBPAGE);
 }
 
+// Set motor signals based on the desired PWM values
+// Function to handle the motor control request
+void handleSetMotor() {
+  if (server.hasArg("speed") && server.hasArg("forwardBackward") && server.hasArg("turnRate")) {
+    requestedSpeed = server.arg("speed").toInt(); // percent from 0 to 100
+    forward_backward = server.arg("forwardBackward"); // "Forward" or "Backward"
+    requestedTurnRate = server.arg("turnRate").toInt(); // percent from -50 to 50
+    server.send(200, "text/plain", "Motor parameters updated");
+    wifiPacketCount++;
+  } else {
+    server.send(400, "text/plain", "Bad Request");
+  }
+}
+
+void handleSetServo() {
+ if (server.hasArg("servo")) {
+    String servoState = server.arg("servo");
+    if (servoState == "Off") {
+      servoOff = true;
+    } else if (servoState == "On") {
+      servoOff = false;
+    }
+  }
+  server.send(200, "text/plain", "Servo parameters updated");
+}
+
+void handleManualSwitch() {
+  // Log that the manual switch is requested
+  Serial.println("Manual switch requested");
+  if (server.hasArg("bool")) {
+    manual_mode = server.arg("bool") == "true";
+    server.send(200, "text/plain", "Manual mode updated");
+  } else {
+    server.send(400, "text/plain", "Bad Request");
+  }
+}
+
 // Function to receive mode from web interface
 void handleSetMode() {
   Serial.println("Request for setting mode received");
+  wifiPacketCount++;
 
   if (server.hasArg("mode")) {
     // mode is a string that can be among
@@ -242,8 +306,9 @@ void handleSetMode() {
     } else {
       planner.setWaypointsAndMode(0, 0, mode);
     }
-  } else {
-    // Send the HTML page
-    server.send_P(200, "text/html", MODE_SELECT_PAGE);
   }
+  // else {
+  //   // Send the HTML page
+  //   server.send_P(200, "text/html", MODE_SELECT_PAGE);
+  // }
 }

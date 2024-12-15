@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 #include <web.h>
 #include <pid.h>
-#include <WebServer.h>  
+// #include <WebServer.h>  
 #include "rgb.h"
 
 #define LEDC_RESOLUTION_BITS 10
@@ -41,8 +41,8 @@ IPAddress subnet(255, 255, 255, 0);    // Subnet mask
 WiFiUDP udp;
 const unsigned int localUdpPort = 8888; // Port to listen on
 char incomingPacket[5];  // Buffer for incoming packets
-volatile unsigned long serverPrevTime = 0;
-const unsigned long serverInterval = 50;
+// volatile unsigned long serverPrevTime = 0;
+// const unsigned long serverInterval = 50;
 
 // Define the pins for the motor control
 // Inverter 4 -> IN 2, Inverter 2 -> IN 4
@@ -103,7 +103,7 @@ volatile bool newCommandReceived = false;
 int defaultPWM = 500;  // Default PWM value that can be changed via webpage
 
 // Add WebServer instance
-WebServer server(80);  // Add this with other global variables at the top
+// WebServer server(80);  // Add this with other global variables at the top
 
 // Add to global variables
 bool autonomousMode = true;  // Default to autonomous mode
@@ -121,8 +121,9 @@ const int servoMinDuty = (servoMinPulse * (1 << LEDC_RESOLUTION_BITS)) / 20000;
 const int servoMaxDuty = (servoMaxPulse * (1 << LEDC_RESOLUTION_BITS)) / 20000;
 
 // Add global variables for servo control
-bool swingServo = false;
+bool swingServo = true;
 bool servoOff = false;
+int healthPoints = 0;
 
 // Add global variable for swing speed
 int swingSpeed = 1; // Adjust as needed
@@ -183,7 +184,7 @@ void setup() {
   Serial.println("Setting up Access Point...");
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password, 4);
+  WiFi.softAP(ssid, password, 11);
   // Wi-Fi setup as STA mode
   // WiFi.mode(WIFI_MODE_STA);
   // WiFi.config(local_IP, gateway, subnet);
@@ -191,16 +192,16 @@ void setup() {
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
   udp.begin(localUdpPort);
-  Serial.print("HTTP server started at internal IP: ");
+  Serial.print("UDP server started at internal IP: ");
   Serial.print(local_IP);
   Serial.print("\n");
 
   // Update setup to include new endpoints
-  server.on("/", handleRoot);
-  server.on("/setMode", handleSetMode);
-  server.on("/setMotor", handleSetMotor);
-  server.begin();
-  Serial.println("HTTP server started");
+  // server.on("/", handleRoot);
+  // server.on("/setMode", handleSetMode);
+  // server.on("/setMotor", handleSetMotor);
+  // server.begin();
+  // Serial.println("HTTP server started");
 
   // Initialize UDP properly
   if(udp.begin(8888)) {
@@ -233,10 +234,10 @@ void loop() {
   // This will ONLY happen when we make a manual override 
   handleRGB();
   // Handle web server requests at regular intervals
-  if (millis() - serverPrevTime > serverInterval) {
-    server.handleClient();
-    serverPrevTime = millis();
-  }
+  // if (millis() - serverPrevTime > serverInterval) {
+  //   server.handleClient();
+  //   serverPrevTime = millis();
+  // }
 
   printDebug = false;
   if (millis() - last_auto_print_time > PRINT_AUTO_FREQUENCY) {
@@ -261,8 +262,11 @@ void loop() {
       
       if (!parseError) {
         receivedSpeed = incomingPacket[0];
+        receivedSpeed = receivedSpeed - 100;  // Map speed from 0 to 200 to -100 to 100
         receivedAngle = incomingPacket[1];
         char dirChar = incomingPacket[2];
+        healthPoints = incomingPacket[3];
+        servoOff = incomingPacket[4] == 0 ? true : false;
         Serial.print("Angle: ");
         Serial.println(receivedAngle);
         Serial.print("Speed: ");
@@ -271,7 +275,7 @@ void loop() {
         Serial.println(dirChar);
 
         // Convert single character to direction string
-        switch(dirChar) {
+        switch((char)dirChar) {
           case 'L':
             strncpy(receivedDirection, "LEFT", sizeof(receivedDirection) - 1);
             break;
@@ -308,6 +312,10 @@ void loop() {
   // Handle periodic tasks
   unsigned long currentTime = millis();
 
+  if (healthPoints <= 0) {
+    stopCar();
+    return;
+  }
   // Update RPM and control signals at intervals
   if (currentTime - prevRpmCalcTime > rpmCalcInterval) {
     rpmCalculation();
@@ -556,60 +564,54 @@ void steer(int angle, const char* direction, int speed) {
   desiredRightDirection = right_direction;
 }
 
-
-// Add root handler function
-void handleRoot() {
-  server.send_P(200, "text/html", WEBPAGE);
-}
-
 // Add new handler function
 /**
  * Handles mode switching between autonomous and manual control
  * Updates autonomousMode flag and responds to client
  */
-void handleSetMode() {
-  if (server.hasArg("mode")) {
-    String mode = server.arg("mode");
-    autonomousMode = (mode == "autonomous");
-    server.send(200, "text/plain", "Mode updated");
-    Serial.printf("Mode updated to: %s\n", autonomousMode ? "autonomous" : "manual");
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
-}
+// void handleSetMode() {
+//   if (server.hasArg("mode")) {
+//     String mode = server.arg("mode");
+//     autonomousMode = (mode == "autonomous");
+//     server.send(200, "text/plain", "Mode updated");
+//     Serial.printf("Mode updated to: %s\n", autonomousMode ? "autonomous" : "manual");
+//   } else {
+//     server.send(400, "text/plain", "Bad Request");
+//   }
+// }
 
-// Set motor signals based on the desired PWM values
-// Function to handle the motor control request
-void handleSetMotor() {
-  if (server.hasArg("speed") && server.hasArg("forwardBackward") && server.hasArg("turnRate")) {
+// // Set motor signals based on the desired PWM values
+// // Function to handle the motor control request
+// void handleSetMotor() {
+//   if (server.hasArg("speed") && server.hasArg("forwardBackward") && server.hasArg("turnRate")) {
 
-    float motor_speed = server.arg("speed").toFloat(); // percent from 0 to 100
-    String forward_backward = server.arg("forwardBackward"); // "Forward" or "Backward"
-    float turn_rate = server.arg("turnRate").toFloat(); // percent from -50 to 50
+//     float motor_speed = server.arg("speed").toFloat(); // percent from 0 to 100
+//     String forward_backward = server.arg("forwardBackward"); // "Forward" or "Backward"
+//     float turn_rate = server.arg("turnRate").toFloat(); // percent from -50 to 50
 
-    // Use these parameters to call steer appropriately
-    motor_speed = motor_speed * (forward_backward == "Forward" ? 1 : -1);
-    if (turn_rate < 0) {
-      steer((int)-turn_rate, "RIGHT", motor_speed);
-    } else {
-      steer((int)turn_rate, "LEFT", motor_speed);
-    }
-  }
-}
+//     // Use these parameters to call steer appropriately
+//     motor_speed = motor_speed * (forward_backward == "Forward" ? 1 : -1);
+//     if (turn_rate < 0) {
+//       steer((int)-turn_rate, "RIGHT", motor_speed);
+//     } else {
+//       steer((int)turn_rate, "LEFT", motor_speed);
+//     }
+//   }
+// }
 
-void handleSetServo() {
-  if (server.hasArg("servo")) {
-    String servoState = server.arg("servo");
-    if (servoState == "off") {
-      servoOff = true;
-      swingServo = false;
-    } else if (servoState == "on") {
-      servoOff = false;
-      swingServo = true;
-    }
-  }
-  server.send(200, "text/plain", "Servo parameters updated");
-}
+// void handleSetServo() {
+//   if (server.hasArg("servo")) {
+//     String servoState = server.arg("servo");
+//     if (servoState == "off") {
+//       servoOff = true;
+//       swingServo = false;
+//     } else if (servoState == "on") {
+//       servoOff = false;
+//       swingServo = true;
+//     }
+//   }
+//   server.send(200, "text/plain", "Servo parameters updated");
+// }
 
 // Function to map angle to duty cycle
 unsigned int angleToDuty(int angle) {
