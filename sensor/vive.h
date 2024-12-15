@@ -89,7 +89,7 @@ uint32_t med3filt(uint32_t a, uint32_t b, uint32_t c) {
 
 // Function to update the Vive position based on the given vive object
 // and update the vive results struct in place.
-void UpdateVivePosition (Vive510& vive_obj, ViveResults& vive_results) {
+void UpdateVivePosition (Vive510& vive_obj, ViveResults& vive_results, int sync_time) {
     if (vive_obj.status() == VIVE_RECEIVING) {
         vive_results.oldx2 = vive_results.oldx1;
         vive_results.oldy2 = vive_results.oldy1;
@@ -109,7 +109,7 @@ void UpdateVivePosition (Vive510& vive_obj, ViveResults& vive_results) {
         }
     } else {
         // Sync if not receiving
-        vive_obj.sync(5);
+        vive_obj.sync(sync_time);
     }
 }
 
@@ -139,8 +139,8 @@ void UpdateCombinedCoordinatesAndOrientation () {
 
 // Function to update 
 void ViveUpdate() {
-    UpdateVivePosition(vive1, vive1_results);
-    UpdateVivePosition(vive2, vive2_results);
+    UpdateVivePosition(vive1, vive1_results, 5);
+    UpdateVivePosition(vive2, vive2_results, 15);
     UpdateCombinedCoordinatesAndOrientation();
 
     // Print the combined results

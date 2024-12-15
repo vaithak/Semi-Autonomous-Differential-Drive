@@ -36,7 +36,8 @@ void handleSetMotor();
 void handleSetServo();
 
 // Store number of wifi packets received
-int wifiPacketCount = 0;
+uint8_t wifiPacketCount = 0;
+uint8_t healthPoints = 100;
 
 // Store servo state
 bool servoOff = false;
@@ -45,6 +46,9 @@ bool servoOff = false;
 int requestedSpeed = 0;
 int requestedTurnRate = 0;
 String forward_backward = "Forward";
+
+// Last top hat read
+uint8_t lastTopHatRead = 0;
 
 void setup() {
   setupRGB();
@@ -132,6 +136,7 @@ void loop() {
     } else {
       planner.planLogic();  // Ensure this is called regularly
     }
+    delay(50);
 
     handleRGB();
     // Print sensor values every 1 second
@@ -143,16 +148,13 @@ void loop() {
     // }
 
     // Read top hat data every 500ms
-    // if (millis() - lastRead > 500) {
-    //   uint8_t topHatData = readTopHatData();
-    //   // send top hat data over UDP
-    //   if (udp.beginPacket(udpAddress, udpPort)) {
-    //     int packet_hp = 69;
-    //     udp.write(packet_hp, strlen(packet_hp));
-    //     udp.endPacket();
-    //   }
-    //   lastRead = millis();
-    // }
+    if (millis() - lastTopHatRead > 500) {
+      healthPoints = readTopHatData();
+      // Send wifi packet to top hat
+      sendTopHatData(wifiPacketCount);
+      wifiPacketCount = 0;
+      lastTopHatRead = millis();
+    }
     
     // TODO: Send UDP Packet of current HP to auto.ino
   }
@@ -193,7 +195,7 @@ void sendSteeringCommand(int angle, const char* direction, int speed) {
   sendData[0] = (uint8_t)(speed + 100); // mapping -100 to 100 -> 0 to 200
   sendData[1] = (uint8_t)angle;
   sendData[2] = direction[0];
-  sendData[3] = 100; // TODO: send health points
+  sendData[3] = healthPoints;
   sendData[4] = servoOff ? 0 : 1;
 
   // Send UDP packet with proper error handling
