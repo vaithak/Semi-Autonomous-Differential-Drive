@@ -427,10 +427,10 @@ void prepareControlledMotorSignals(
 void convertAngularVelocityToPWM(float omega, int& pwm_ref, int& direction) {
   if (omega > 0.0) {
     direction = LOW;  // LOW for forward
-    pwm_ref = mapf(omega, 0, MAX_WHEEL_VELOCTY, 0, (float)LEDC_RESOLUTION);
+    pwm_ref = (int)(mapf(omega, 0, MAX_WHEEL_VELOCTY, 0, (float)LEDC_RESOLUTION));
   } else if (omega < 0.0) {
     direction = HIGH; // HIGH for backward
-    pwm_ref = mapf(-omega, 0, MAX_WHEEL_VELOCTY, 0, (float)LEDC_RESOLUTION);
+    pwm_ref = (int)(mapf(-omega, 0, MAX_WHEEL_VELOCTY, 0, (float)LEDC_RESOLUTION));
   } else {
     // When omega is zero, maintain the last direction
     pwm_ref = 0;
