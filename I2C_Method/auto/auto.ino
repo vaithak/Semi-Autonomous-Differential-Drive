@@ -1,10 +1,12 @@
 #include <WiFi.h>
-#include <WiFiUdp.h>
+#include <Wire.h>
 #include <ArduinoJson.h>
 #include <web.h>
 #include <pid.h>
 #include <WebServer.h>  
 #include "rgb.h"
+#include "top_hat.h"
+#include "sensor_read.h"
 
 #define LEDC_RESOLUTION_BITS 10
 #define LEDC_RESOLUTION ((1 << LEDC_RESOLUTION_BITS) - 1)
@@ -30,26 +32,26 @@
 uint32_t last_auto_print_time = 0;
 
 // Wi-Fi network name and password
-const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
-const char* password = "";   // Wi-Fi password (empty for no password)
+// const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
+// const char* password = "";   // Wi-Fi password (empty for no password)
 
 // IP configuration for AP mode
-IPAddress local_IP(192, 168, 1, 104);  // ESP32's IP address
-IPAddress gateway(192, 168, 1, 104);   // Gateway IP (same as ESP32 in AP mode)
-IPAddress subnet(255, 255, 255, 0);    // Subnet mask
+// IPAddress local_IP(192, 168, 1, 104);  // ESP32's IP address
+// IPAddress gateway(192, 168, 1, 104);   // Gateway IP (same as ESP32 in AP mode)
+// IPAddress subnet(255, 255, 255, 0);    // Subnet mask
 
-WiFiUDP udp;
+// WiFiUDP udp;
 const unsigned int localUdpPort = 8888; // Port to listen on
-char incomingPacket[5];  // Buffer for incoming packets
+char incomingPacket[200];  // Buffer for incoming packets
 volatile unsigned long serverPrevTime = 0;
 const unsigned long serverInterval = 50;
 
 // Define the pins for the motor control
 // Inverter 4 -> IN 2, Inverter 2 -> IN 4
-const int pwmPinLeft = 4;  // PWM output pin (connected to EN pin on H-Bridge)
-const int pwmPinRight = 5;  // PWM output pin (connected to EN pin on H-Bridge)
-const int dirPinLeft = 18;  // Direction control pin 1 (for left motor) -> Inverter 1, IN 3
-const int dirPinRight = 19;  // Direction control pin 2 (for right motor) -> Inverter 3, IN 1
+const int pwmPinLeft = 2;  // PWM output pin (connected to EN pin on H-Bridge)
+const int pwmPinRight = 1;  // PWM output pin (connected to EN pin on H-Bridge)
+const int dirPinLeft = 4;  // Direction control pin 1 (for left motor) -> Inverter 1, IN 3
+const int dirPinRight = 5;  // Direction control pin 2 (for right motor) -> Inverter 3, IN 1
 
 // Gloal variable to store current desired PWM for left and right motors
 int desiredLeftPWM = 0;
@@ -66,10 +68,10 @@ float KD = 0.0;
 int ENABLE_CONTROL = 1;
 
 // Define the pins for the encoder A and B channels
-const int encoderPinLeftA = 7;
-const int encoderPinLeftB = 6;
-const int encoderPinRightA = 1;
-const int encoderPinRightB = 0;
+const int encoderPinLeftA = 21;
+const int encoderPinLeftB = 33;
+const int encoderPinRightA = 11;
+const int encoderPinRightB = 12;
 const int pulsesPerRevolution = 48;
 const int gearRatio = 100;
 
@@ -93,21 +95,15 @@ PIDController rightPID(KP, KI, KD, 4000, -LEDC_RESOLUTION, LEDC_RESOLUTION);
 
 #define DEBUG 1
 
-// Variables to store received commands
-volatile int receivedAngle = 0;
-volatile int receivedSpeed = 0;
-char receivedDirection[10] = "FORWARD";  // Remove volatile
-volatile bool newCommandReceived = false;
 
 // Add global variable for default PWM
 int defaultPWM = 500;  // Default PWM value that can be changed via webpage
 
 // Add WebServer instance
-WebServer server(80);  // Add this with other global variables at the top
+// WebServer server(80);  // Add this with other global variables at the top
 
 // Add to global variables
 bool autonomousMode = true;  // Default to autonomous mode
-
 
 // Add constants for servo control
 const int servoPWMPin = 10;
@@ -126,6 +122,9 @@ bool servoOff = false;
 
 // Add global variable for swing speed
 int swingSpeed = 1; // Adjust as needed
+
+// Last read time for the top hat
+unsigned long topHatLastRead = 0;
 
 // Interrupt function to update the encoder position, add IRAM_ATTR to run in IRAM
 void IRAM_ATTR updateLeftEncoder() {
@@ -180,34 +179,33 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(encoderPinRightB), updateRightEncoder, CHANGE);
 
   // Set up Access Point
-  Serial.println("Setting up Access Point...");
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password, 4);
-  // Wi-Fi setup as STA mode
-  // WiFi.mode(WIFI_MODE_STA);
-  // WiFi.config(local_IP, gateway, subnet);
-  // WiFi.begin(ssid, password, 2);
-  Serial.print("AP IP address: ");
-  Serial.println(WiFi.softAPIP());
-  udp.begin(localUdpPort);
-  Serial.print("HTTP server started at internal IP: ");
-  Serial.print(local_IP);
-  Serial.print("\n");
+  // Serial.println("Setting up Access Point...");
+  // WiFi.mode(WIFI_AP);
+  // WiFi.softAPConfig(local_IP, gateway, subnet);
+  // WiFi.softAP(ssid, password, 4);
+  // Serial.print("AP IP address: ");
+  // Serial.println(WiFi.softAPIP());
+  // udp.begin(localUdpPort);
+  // Serial.print("HTTP server started at internal IP: ");
+  // Serial.print(local_IP);
+  // Serial.print("\n");
+
+  initTopHat();
+  sensor_i2c_setup(); // Setup slave I2C for sensor.ino
 
   // Update setup to include new endpoints
-  server.on("/", handleRoot);
-  server.on("/setMode", handleSetMode);
-  server.on("/setMotor", handleSetMotor);
-  server.begin();
-  Serial.println("HTTP server started");
+  // server.on("/", handleRoot);
+  // server.on("/setMode", handleSetMode);
+  // server.on("/setMotor", handleSetMotor);
+  // server.begin();
+  // Serial.println("HTTP server started");
 
   // Initialize UDP properly
-  if(udp.begin(8888)) {
-    Serial.println("UDP server started at port 8888");
-  } else {
-    Serial.println("UDP server failed to start");
-  }
+  // if(udp.begin(8888)) {
+  //   Serial.println("UDP server started at port 8888");
+  // } else {
+  //   Serial.println("UDP server failed to start");
+  // }
 
   // Initialize PWM for servo
   ledcAttach(servoPWMPin, LEDC_FREQUENCY, LEDC_RESOLUTION_BITS);
@@ -227,7 +225,7 @@ void setup() {
  * 3. Motor control based on mode (autonomous/manual)
  * 4. RPM calculations and PID control
  */
-bool printDebug = true;
+bool printDebug = false;
 void loop() {
   // TODO: Send UDP Packet to sensor.ino, so that it can send packet to top hat to take off health
   // This will ONLY happen when we make a manual override 
@@ -244,60 +242,53 @@ void loop() {
     last_auto_print_time = millis();
   }
 
-  // Handle UDP packets
-  int packetSize = udp.parsePacket();
-
-  if (packetSize) {
-    char incomingPacket[5];
-    int len = udp.read(incomingPacket, 5);
-    if (len > 0) {
-      incomingPacket[len] = 0;  // Null terminate
-      if (printDebug) {
-        Serial.printf("[Successful] Received packet: %s\n", incomingPacket);
-      }
-      
-      // Parse Packet - Add error checking
-      bool parseError = false;
-      
-      if (!parseError) {
-        receivedSpeed = incomingPacket[0];
-        receivedAngle = incomingPacket[1];
-        char dirChar = incomingPacket[2];
-        Serial.print("Angle: ");
-        Serial.println(receivedAngle);
-        Serial.print("Speed: ");
-        Serial.println(receivedSpeed);
-        Serial.print("Direction: ");
-        Serial.println(dirChar);
-
-        // Convert single character to direction string
-        switch(dirChar) {
-          case 'L':
-            strncpy(receivedDirection, "LEFT", sizeof(receivedDirection) - 1);
-            break;
-          case 'R':
-            strncpy(receivedDirection, "RIGHT", sizeof(receivedDirection) - 1);
-            break;
-          case 'F':
-            strncpy(receivedDirection, "FORWARD", sizeof(receivedDirection) - 1);
-            break;
-          default:
-            parseError = true;
-        }
-        
-        if (!parseError) {
-          receivedDirection[sizeof(receivedDirection) - 1] = '\0';
-          newCommandReceived = true;
-          
-          if (printDebug) {
-            Serial.printf("Received: angle=%d, direction=%s, speed=%d\n", 
-                        receivedAngle, receivedDirection, receivedSpeed);
-          }
-        }
-      }
+  // Read top hat data every 500ms
+  if (millis() - topHatLastRead > TOP_HAT_READ_INTERVAL) {
+    uint8_t topHatData = readTopHatData();
+    if (printDebug) {
+      Serial.printf("Top hat data: %d\n", topHatData);
     }
+
+    // Send top hat number of wifi packets bt calling 
+    // sendTopHatData function
+    sendTopHatData(wifiPackets);
+    wifiPackets = 0;
+
+    // Reset the top hat last read time
+    topHatLastRead = millis();
   }
 
+  // Handle UDP packets
+  // int packetSize = udp.parsePacket();
+  // if (packetSize) {
+  //   char incomingPacket[255];
+  //   int len = udp.read(incomingPacket, 255);
+  //   if (len > 0) {
+  //     incomingPacket[len] = 0;  // Null terminate
+  //     if (printDebug) {
+  //       Serial.printf("[Successful] Received packet: %s\n", incomingPacket);
+  //     }
+      
+  //     // Parse JSON
+  //     StaticJsonDocument<200> doc;
+  //     DeserializationError error = deserializeJson(doc, incomingPacket);
+      
+  //     if (!error) {
+  //       receivedAngle = doc["angle"];
+  //       const char* dir = doc["direction"];
+  //       receivedSpeed = doc["speed"];
+  //       strncpy((char*)receivedDirection, dir, sizeof(receivedDirection) - 1);
+  //       receivedDirection[sizeof(receivedDirection) - 1] = '\0';
+  //       newCommandReceived = true;
+        
+  //       // Print received values
+  //       if (printDebug) {
+  //         Serial.printf("Received: angle=%d, direction=%s, speed=%d\n", 
+  //                       receivedAngle, receivedDirection, receivedSpeed);
+  //       }
+  //     }
+  //   }
+  // }
   // receivedAngle = 0;
   // receivedSpeed = 50;
   // strncpy((char*)receivedDirection, "LEFT", sizeof(receivedDirection) - 1);
@@ -322,10 +313,13 @@ void loop() {
   }
 
   // Process received steering commands only in autonomous mode
-  if (autonomousMode && newCommandReceived) {
-    steer(receivedAngle, receivedDirection, receivedSpeed);
-    newCommandReceived = false;
-  }
+  // if (autonomousMode && newCommandReceived) {
+  //   steer(receivedAngle, receivedDirection, receivedSpeed);
+  //   newCommandReceived = false;
+  // }
+  steer((int)receivedAngle, receivedDirection, (int)receivedSpeed);
+  setServo(receivedServo);
+
 
   // Prepare and send motor signals
   int controlled_left_pwm, controlled_right_pwm;
@@ -523,19 +517,15 @@ void readEncoderValue(
  * @param direction: "LEFT", "RIGHT", or "FORWARD"
  * @param speed: Desired speed (0-100)
  */
-void steer(int angle, const char* direction, int speed) {
+void steer(int angle, char direction, int speed) {
   float maxSteeringAngle = 50;  // Use MAX_STEERING_ANGLE from wall_follow.h
   float moveSpeed = (speed / 100.0) * MAX_LINEAR_VELOCTY;
   float angular_velocity = (angle / maxSteeringAngle) * MAX_ANGULAR_VELOCITY;
-  Serial.print("moveSpeed: ");
-  Serial.println(moveSpeed);
-  Serial.print("angular_velocity: ");
-  Serial.println(angular_velocity);
 
-  if (strcmp(direction, "LEFT") == 0) {
+  if (direction == 'L') {
     // Positive angular velocity for left turn
     angular_velocity = angular_velocity;
-  } else if (strcmp(direction, "RIGHT") == 0) {
+  } else if (direction == 'R') {
     // Negative angular velocity for right turn
     angular_velocity = -angular_velocity;
   } else {
@@ -546,7 +536,7 @@ void steer(int angle, const char* direction, int speed) {
   int left_pwm, left_direction, right_pwm, right_direction;
   prepareIdealMotorSignals(moveSpeed, angular_velocity, left_pwm, left_direction, right_pwm, right_direction);
   if (printDebug) {
-    Serial.printf("Steering: angle=%d, direction=%s, speed=%d\n", angle, direction, speed);
+    Serial.printf("Steering: angle=%d, direction=%c, speed=%d\n", angle, direction, speed);
     Serial.printf("Desired Left: PWM=%d, Direction=%d\n", left_pwm, left_direction);
     Serial.printf("Desired Right: PWM=%d, Direction=%d\n", right_pwm, right_direction);
   }
@@ -590,9 +580,9 @@ void handleSetMotor() {
     // Use these parameters to call steer appropriately
     motor_speed = motor_speed * (forward_backward == "Forward" ? 1 : -1);
     if (turn_rate < 0) {
-      steer((int)-turn_rate, "RIGHT", motor_speed);
+      steer((int)-turn_rate, 'R', motor_speed);
     } else {
-      steer((int)turn_rate, "LEFT", motor_speed);
+      steer((int)turn_rate, 'L', motor_speed);
     }
   }
 }
@@ -609,6 +599,17 @@ void handleSetServo() {
     }
   }
   server.send(200, "text/plain", "Servo parameters updated");
+}
+
+void setServo(int servoSignal) {
+  if (servoSignal == 0) {
+    servoOff = true;
+    swingServo = false;
+  } else {
+    servoOff = false;
+    swingServo = true;
+  }
+  handleServo(servoOff, swingServo, swingSpeed);
 }
 
 // Function to map angle to duty cycle

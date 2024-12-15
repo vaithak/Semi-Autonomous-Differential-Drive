@@ -1,14 +1,14 @@
 #include <WiFi.h>
 #include <WebServer.h>
-#include <WebSocketsServer.h>
 #include <WiFiUdp.h>     
 #include <Wire.h>
 #include <Adafruit_VL53L0X.h>
 #include <ArduinoJson.h>
 #include "planning.h"
 #include "web.h"
+#include "mode_select_web.h"
 #include "rgb.h"
-#include "send_auto.h"
+#include "top_hat.h"
 
 const char* ssid = "GM Lab Public WIFI";  // Wi-Fi network name
 const char* password = "";   // Wi-Fi password (empty for no password)    
@@ -17,23 +17,19 @@ IPAddress local_IP(192, 168, 1, 105);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0); 
 
+// IP and port of the auto.ino board
+const char* udpAddress = "192.168.1.104";  // IP address of auto.ino
+const unsigned int udpPort = 8888;         // UDP port to send data to
+
+WiFiUDP udp;
+
+WebServer server(80);
 Planner planner;
-uint32_t wifi_packets = 0;
-uint8_t sendData[32];
-
-WebServer server(80);  // Initialize web server
-
-bool autonomousMode = true;  // Global variable to track the mode
-const int AUTO_I2C_ADDRESS = 0x08;  // I2C address of auto.ino
 
 // Function prototypes
-void sendSteeringCommand(int angle, char direction, int speed, int servo);
+void sendSteeringCommand(int angle, const char* direction, int speed);
 void handleRoot();
-void handleSetAuto();
-void handleControl();
-void handleSetMode();
-// void handleData();
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+void handleData();
 
 void setup() {
   setupRGB();
@@ -41,45 +37,50 @@ void setup() {
   delay(1000);  // Add delay to ensure serial monitor is ready
   Serial.println("\n\nStarting Sensor Node...");
 
-  // Initialize I2C with auto
-  initSensorAuto();
 
   // Initialize I2C with custom SDA and SCL pins
-  // Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.begin(SDA_PIN, SCL_PIN);
   // Initialize the planner
   planner.setup();
+  initTopHat();
 
-  // Initialize I2C as master
-  Wire.begin();  // No address means this is the master
+  // Initialize the top hat sensor
 
-  WiFi.mode(WIFI_AP);
-  WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid, password, 5);
+
+  // Wi-Fi setup as STA mode
+  WiFi.mode(WIFI_MODE_STA);
+  WiFi.config(local_IP, gateway, subnet);
+  WiFi.begin(ssid, password, 4);
 
   // Initialize web server routes regardless of Wi-Fi connection status
   server.on("/", handleRoot);
-  server.on("/setAuto", handleSetAuto);
-  server.on("/control", handleControl);
-  // server.on("/data", handleData);
+  server.on("/data", handleData);
   server.on("/setMode", handleSetMode);
 
   // Start the web server
   server.begin();
   Serial.println("Web server started");
 
-  // Initialize WebSocket server
-  // webSocket.begin();
-  // webSocket.onEvent(webSocketEvent);
-  // Serial.println("WebSocket server started");
-
   // Start UDP
-  // udp.begin(udpPort);
-  // Serial.print("UDP client started on port ");
-  // Serial.println(udpPort);
+  udp.begin(udpPort);
+  Serial.print("UDP client started on port ");
+  Serial.println(udpPort);
 
-  // Add a print statement to indicate AP mode is active
-  Serial.printf("Access Point \"%s\" started. IP address: ", ssid);
-  Serial.println(WiFi.softAPIP());
+  Serial.print("Waiting for WiFi connection");
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+  Serial.println();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("connected to %s on ", ssid);
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("Failed to connect to WiFi!");
+  }
 }
 
 /**
@@ -93,17 +94,21 @@ void loop() {
 
   // Always handle client requests
   server.handleClient();
-  // webSocket.loop();
-
-  if (autonomousMode) {
-    planner.planLogic();  // Autonomous mode
+  // Handle Wi-Fi connection
+  if (WiFi.status() != WL_CONNECTED) {
+    // Try to reconnect to Wi-Fi if connection is lost
+    static unsigned long lastReconnectAttempt = 0;
+    unsigned long currentTime = millis();
+    if (currentTime - lastReconnectAttempt >= 5000) {  // Try every 5 seconds
+      Serial.println("Reconnecting to WiFi...");
+      WiFi.reconnect();
+      lastReconnectAttempt = currentTime;
+    }
   } else {
-    // Manual mode, no autonomous planning
-    // Handle manual control commands if necessary
-  }
+    planner.planLogic();  // Ensure this is called regularly
 
-  // delay(80);
-  handleRGB();
+    delay(80);
+    handleRGB();
     // Print sensor values every 1 second
     // if (millis() - lastPrint > 1000) {
     //   int d_front, d_left, d_right;
@@ -112,49 +117,20 @@ void loop() {
     //   lastPrint = millis();
     // }
 
-    // Send sensor data over WebSocket
-    // static unsigned long lastBroadcast = 0;
-    // unsigned long lastRead = 0;
-    // if (millis() - lastBroadcast > 100) {   // Broadcast every 100ms
-    //   int d_front, d_left, d_right;
-    //   int steering_angle, speed;
-    //   const char* direction;
-    //   readToFSensors(d_front, d_left, d_right);
-    //   // readSteeringResult(steering_angle, direction, speed);
-    //   RobotState currentState = planner.getCurrentState();
-    //   StaticJsonDocument<200> doc;
-    //   doc["front"] = d_front;
-    //   doc["left"] = d_left;
-    //   doc["right"] = d_right;
-    //   doc["angle"] = steering_angle;
-    //   doc["direction"] = direction;
-    //   doc["speed"] = speed;
-    //   doc["x"] = currentState.x;
-    //   doc["y"] = currentState.y;
-    //   doc["theta"] = currentState.theta;
-    //   String jsonString;
-    //   serializeJson(doc, jsonString);
-    //   webSocket.broadcastTXT(jsonString);
-    //   lastBroadcast = millis();
-    // }
-
     // Read top hat data every 500ms
     // if (millis() - lastRead > 500) {
     //   uint8_t topHatData = readTopHatData();
-    //   // send top hat data over UDP as json
+    //   // send top hat data over UDP
     //   if (udp.beginPacket(udpAddress, udpPort)) {
-    //     StaticJsonDocument<200> doc;
-    //     doc["HP"] = topHatData;
-    //     char jsonString[200];
-    //     serializeJson(doc, jsonString);
-    //     udp.write((uint8_t*)jsonString, strlen(jsonString));
+    //     int packet_hp = 69;
+    //     udp.write(packet_hp, strlen(packet_hp));
     //     udp.endPacket();
     //   }
     //   lastRead = millis();
     // }
     
     // TODO: Send UDP Packet of current HP to auto.ino
-  // }
+  }
 }
 // Top hat data: 0
 // Top hat data: 0
@@ -179,102 +155,69 @@ void loop() {
  * @param direction: "LEFT", "RIGHT", or "FORWARD"
  * @param speed: Desired speed
  */
-void sendSteeringCommand(int angle, char direction, int speed, int servo) {
+void sendSteeringCommand(int angle, const char* direction, int speed) {
   // StaticJsonDocument<200> doc;
   // doc["angle"] = angle;
   // doc["direction"] = direction;
   // doc["speed"] = speed;  // Add speed to JSON
   // char jsonString[200];
   // serializeJson(doc, jsonString);
-
-  // // Send UDP packet with proper error handling
-  // if(udp.beginPacket(udpAddress, udpPort)) {
-  //   udp.write((uint8_t*)jsonString, strlen(jsonString));
-  //   if(udp.endPacket()) {
-  //     // Serial.printf("[Successful] Sent packet: %s\n", jsonString);
-  //   } else {
-  //     Serial.println("Failed to send UDP packet");
-  //   }
-  // } else {
-  //   Serial.println("Could not begin UDP packet");
-  // }
-
-  // Write the code to encode the received data
-  // 1st byte: Speed (0-100)
-  // Next 1 byte: Angle (0-50)
-  // Next 1 byte: Direction (F - Forward, L - Left, R - Right)
-  // Next 1 byte: Number of used wifi packets
-  // Next 1 byte: Servo (0 - off, 1 - on)
+  
+  // send UDP packet as bytes
+  uint8_t sendData[5];
   sendData[0] = (uint8_t)speed;
   sendData[1] = (uint8_t)angle;
-  sendData[2] = direction;
-  sendData[3] = wifi_packets;
-  sendData[4] = servo;
-  sendAutoData(sendData, 4);
+  sendData[2] = direction[0];
+  sendData[3] = 0;  // Number of wifi packets
+  sendData[4] = 0;  // Servo off
+
+  // Send UDP packet with proper error handling
+  if(udp.beginPacket(udpAddress, udpPort)) {
+    udp.write(sendData, 5);  // Use fixed size 5 instead of strlen
+    if(udp.endPacket()) {
+      // Serial.printf("[Successful] Sent packet: %s\n", jsonString);
+    } else {
+      Serial.println("Failed to send UDP packet");
+    }
+  } else {
+    Serial.println("Could not begin UDP packet");
+  }
 }
 
 // Function to send sensor data to clients
-// void handleData() {
-//   int d_front, d_left, d_right;
-//   int steering_angle = 
-//   float x, y, theta;
-//   char direction;
-//   readToFSensors(d_front, d_left, d_right);
-//   // readSteeringResult(steering_angle, direction, speed);
-//   RobotState currentState = planner.getCurrentState();
-//   x = currentState.x;
-//   y = currentState.y;
-//   theta = currentState.theta;
-//   // Prepare JSON data
-//   String jsonString = "{";
-//   jsonString += "\"front\":" + String(d_front) + ",";
-//   jsonString += "\"left\":" + String(d_left) + ",";
-//   jsonString += "\"right\":" + String(d_right);
-//   jsonString += "\"angle\":" + String(steering_angle) + ",";
-//   jsonString += "\"direction\":\"" + String(direction) + "\",";
-//   jsonString += "\"speed\":" + String(speed) + ",";
-//   jsonString += "\"x\":" + String(planner.getCurrentState().x) + ",";
-//   jsonString += "\"y\":" + String(planner.getCurrentState().y) + ",";
-//   jsonString += "\"theta\":" + String(planner.getCurrentState().theta);
-//   jsonString += "}";
+void handleData() {
+  int d_front, d_left, d_right;
+  int steering_angle, speed;
+  float x, y, theta;
+  const char* direction;
+  readToFSensors(d_front, d_left, d_right);
+  readSteeringResult(steering_angle, direction, speed);
+  RobotState currentState = planner.getCurrentState();
+  x = currentState.x;
+  y = currentState.y;
+  theta = currentState.theta;
+  // Prepare JSON data
+  String jsonString = "{";
+  jsonString += "\"front\":" + String(d_front) + ",";
+  jsonString += "\"left\":" + String(d_left) + ",";
+  jsonString += "\"right\":" + String(d_right);
+  jsonString += "\"angle\":" + String(steering_angle) + ",";
+  jsonString += "\"direction\":\"" + String(direction) + "\",";
+  jsonString += "\"speed\":" + String(speed) + ",";
+  jsonString += "\"x\":" + String(planner.getCurrentState().x) + ",";
+  jsonString += "\"y\":" + String(planner.getCurrentState().y) + ",";
+  jsonString += "\"theta\":" + String(planner.getCurrentState().theta);
+  jsonString += "}";
 
-//   // Send JSON data
-//   server.send(200, "application/json", jsonString);
-// }
+  // Send JSON data
+  server.send(200, "application/json", jsonString);
+}
 
 // Implement handleRoot function similar to auto.ino
 void handleRoot() {
   // Log that the root page is requested
   Serial.println("Root page requested");
   server.send_P(200, "text/html", WEBPAGE);
-}
-
-void handleSetAuto() {
-  if (server.hasArg("mode")) {
-    String mode = server.arg("mode");
-    autonomousMode = (mode == "autonomous");
-    server.send(200, "text/plain", "Mode updated");
-    Serial.printf("Mode updated to: %s\n", autonomousMode ? "autonomous" : "manual");
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
-}
-
-void handleControl() {
-  if (!autonomousMode) {
-    if (server.hasArg("angle") && server.hasArg("direction") && server.hasArg("speed") && server.hasArg("servo")) {
-    int angle = server.arg("angle").toInt();
-    String direction = server.arg("direction");
-    int speed = server.arg("speed").toInt();
-    int servo = server.arg("servo").toInt();
-    sendSteeringCommand(angle, direction[0], speed, servo);
-    server.send(200, "text/plain", "Steering command sent");
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-}
-  } else {
-    server.send(400, "text/plain", "Manual control not allowed in autonomous mode");
-  }
 }
 
 // Function to receive mode from web interface
@@ -299,27 +242,8 @@ void handleSetMode() {
     } else {
       planner.setWaypointsAndMode(0, 0, mode);
     }
-    server.send(200, "text/plain", "Mode updated");
   } else {
-    server.send(400, "text/plain", "Bad Request");
+    // Send the HTML page
+    server.send_P(200, "text/html", MODE_SELECT_PAGE);
   }
 }
-
-// void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-//   switch (type) {
-//     case WStype_DISCONNECTED:
-//       Serial.printf("[%u] Disconnected!\n", num);
-//       break;
-//     case WStype_CONNECTED: {
-//       IPAddress ip = webSocket.remoteIP(num);
-//       Serial.printf("[%u] Connected from %s\n", num, ip.toString().c_str());
-//       break;
-//     }
-//     case WStype_TEXT:
-//       Serial.printf("[%u] Received text: %s\n", num, payload);
-//       // Handle incoming messages if needed
-//       break;
-//     default:
-//       break;  
-//   }  
-// }  // Close the function properly
