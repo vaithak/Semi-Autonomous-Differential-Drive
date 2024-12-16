@@ -1,3 +1,10 @@
+/*
+MEAM 5100 Final Project - Auto ESP Code
+Author: Team 27
+The auto ESP code is responsible for controlling the car based on sensor data and user input.
+Modified based on controller.ino from Lab 4.
+*/
+
 #include <WiFi.h>
 #include <WiFiUdp.h>
 // #include <web.h>
