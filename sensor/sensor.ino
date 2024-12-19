@@ -1,3 +1,9 @@
+/*
+MEAM 5100 Final Project - Sensor ESP Code
+Author: Team 27
+The sensor ESP code is responsible for reading sensor data and sending it to the auto ESP code.
+*/
+
 #include <WiFi.h>
 #include <WebServer.h>
 #include <WiFiUdp.h>     
